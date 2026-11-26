@@ -20,5 +20,8 @@ Langue de travail avec Romain : **français**. Code, identifiants et commits : *
 6. Commits petits, messages en anglais (`feat:`, `fix:`, `docs:`, `chore:`).
 7. Avant de conclure une tâche : `npm test` et `npm run build` doivent passer.
 
+## Principe de design à ne jamais oublier
+Le jeu est un **TCG avant tout**. Le monde d'Himiko est du **lore/contexte** (comme les dragons de Yu-Gi-Oh!) : il ne doit **jamais** imposer de camp ou de contrainte de gameplay. Le « monde réel » moderne est le cadre de la campagne (adversaires humains avec leurs decks).
+
 ## Commandes
 `npm run dev` · `npm test` · `npm run build` · `npm run package:itch`

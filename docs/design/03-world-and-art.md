@@ -1,24 +1,34 @@
 # Univers & direction artistique
 
-## Principe : deux couches
-1. **Monde réel** — monde moderne, quasi identique au nôtre, où *Himiko's Garden* est devenu un jeu incontournable (ampleur d'un League of Legends). C'est le cadre du joueur : interface, collection, boutique de boosters, éventuellement une narration « joueur » (tournois, rivaux…).
-2. **Monde d'Himiko** — l'histoire *du jeu de cartes*. Japon féodal très romancé et exagéré, fantasy.
+## Principe : le TCG d'abord, le lore ensuite
+Le cœur du jeu est son **aspect TCG**. L'univers est un **contexte** qui donne de la couleur, jamais une contrainte de gameplay.
+Analogie : à Magic ou Yu-Gi-Oh!, personne ne se demande pourquoi deux dragons se battent. Chaque carte a son histoire, mais le jeu passe avant.
+> Corollaire : le nom « Himiko » est une identité de marque. Le gameplay ne doit jamais en dépendre.
 
-## Monde d'Himiko
-- **Himiko** : princesse du royaume. Elle a besoin d'une armée pour empêcher les **démons** de gagner.
-- Les joueurs du monde réel incarnent des stratèges qui commandent les personnages de cette histoire.
-- **Camps** : aider Himiko ou aider les démons *(à confirmer : choix de camp = deux campagnes ? factions jouables ?)*.
-- **Cartes = personnages** (guerriers, ninjas, démons…) avec une **personnalité** et la possibilité d'avoir une **histoire annexe** chacune → le lore peut s'étendre presque à l'infini.
+## Deux couches
+
+### 1. Monde réel (le cadre, ce que vit le joueur)
+- Monde moderne, quasi identique au nôtre, où *Himiko's Garden* est un jeu de cartes PVP devenu incontournable (ampleur d'un League of Legends).
+- Le joueur est un **humain** de ce monde. Il est **défié par d'autres humains**, chacun avec son propre deck. La campagne = une suite d'adversaires humains, avec une histoire qui justifie chaque duel.
+- Thème visuel : « normal », moderne (menus, collection, boutique, profil, rivaux).
+
+### 2. Monde d'Himiko (le lore des cartes)
+- Japon féodal très romancé et exagéré, fantasy. **Himiko** est la princesse ; les **démons** sont une menace. Guerriers, ninjas, etc.
+- Sert **uniquement** de lore : illustrations, noms, histoires annexes par carte. Lore extensible à l'infini.
+- **Aucun camp imposé** : un joueur peut jouer des démons, ou deux Himiko peuvent s'affronter. L'appartenance (Himiko / démons) n'a pas d'effet de gameplay, ou presque (peut-être un mot-clé de type, à voir).
+- **Le général est libre** : le joueur choisit la carte qui fait office de « roi » / chef.
 
 ## Lore par carte
-Chaque carte du catalogue aura : un court texte d'ambiance, un trait de personnalité (qui influence son comportement en duel, voir [01-rules.md](01-rules.md)), et optionnellement une histoire annexe.
+Court texte d'ambiance, trait de personnalité (qui pilote son comportement, voir [01-rules.md](01-rules.md)), histoire annexe optionnelle.
 
 ## Direction artistique
 - Monde réel : UI moderne, sobre.
-- Monde d'Himiko : estampes / encre / japon ancien, fantasy. *Style précis à décider (voir OPEN-QUESTIONS).*
+- Cartes : estampes / encre / japon ancien, fantasy.
+- **Assets : libres de droits en priorité.** Retouche IA seulement si vraiment nécessaire.
+- Prototype : cartes avec symboles et couleurs, art ajouté plus tard.
 
 ## Audio
-À définir.
+À définir (sources libres de droits).
 
 ## Sources d'assets & licences
-Tout asset externe est listé ici avec sa licence.
+Tout asset externe est listé ici avec sa licence. *(vide pour l'instant)*
