@@ -1,23 +1,33 @@
 # Cartes
 
-> Brouillon. Statut : principes seulement.
+> Brouillon. Statut : principes validés, catalogue vide.
 
 ## Principes validés
-- Les cartes sont des **personnages** du monde d'Himiko (guerriers, ninjas, démons…), chacun avec une **personnalité** qui pilote son comportement autonome en duel.
-- Chaque carte peut avoir une histoire annexe (lore extensible).
-- Toute carte peut être **sacrifiée** en offrande pour produire de l'énergie.
+- Cartes = **personnages** du monde d'Himiko, chacun avec une **personnalité** (voir [01-rules.md](01-rules.md)) qui pilote son comportement autonome.
+- Toute carte peut être **sacrifiée** en offrande ; certaines, exceptionnelles, donnent plus d'énergie.
+- Histoire annexe optionnelle par carte (lore).
 
-## Progression des cartes (« cultiver l'armée »)
-- **Boosters** : certain.
-- **Fusion** de cartes et/ou **XP** : possible, pas tranché.
-- **Idle** : optionnel, non prioritaire.
+## Stats de base
+**PV, Attaque, Coût (énergie).**
 
-## Anatomie d'une carte (à valider)
-id, nom, type, coût en énergie, stats, personnalité, capacité, texte d'ambiance, rareté, illustration.
+## Attributs annexes (par carte, optionnels)
+Race, type, élément, pouvoir, effets spéciaux. *Listes à définir.*
+
+## Grade (Général / Colonel / Lieutenant)
+- Voir [01-rules.md](01-rules.md). **Temporaire : toute carte peut avoir tout grade** (option 1) ; l'option 2 (catégorie à part) reste ouverte.
+- Le grade est une donnée **distincte de la rareté**.
+
+## Rareté
+Commune, Rare, Épique, Légendaire, **Mythique** (niveau ultime). **Indépendante du grade.**
+
+## Boosters
+- 5 cartes par booster, **au moins 1 gradé garanti** (Général, Colonel ou Lieutenant).
+- Système complet à concevoir (taux, pitié, prix en monnaie de jeu).
+- Aucun argent réel.
+
+## Progression des cartes
+Boosters (certain) ; fusion et/ou XP (possible) ; idle (optionnel, plus tard).
 
 ## Catalogue
-| id | Nom | Type | Coût | Effet | Personnalité | Notes |
-|---|---|---|---|---|---|---|
-
-## Équilibrage
-À définir.
+| id | Nom | Grade | Rareté | Coût | ATK | PV | Personnalité | Effet |
+|---|---|---|---|---|---|---|---|---|

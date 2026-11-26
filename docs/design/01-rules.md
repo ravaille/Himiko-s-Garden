@@ -20,7 +20,7 @@ Liste de départ validée. Une carte a une personnalité ; l'IA de combat de la 
 | Personnalité | Comportement |
 |---|---|
 | **Brave** | Attaque l'ennemi le plus fort. |
-| **Lâche** | Est le **dernier à être attaqué** (les ennemis le ciblent en dernier). *(formulation à confirmer)* |
+| **Lâche** | Est le **dernier survivant de sa propre équipe** (les ennemis le ciblent en dernier). |
 | **Gardien** | Protège l'allié le plus faible. |
 | **Assassin** | Vise directement le général adverse. |
 | **Rancunier** | Frappe celui qui l'a touché en dernier. |
@@ -32,13 +32,31 @@ Liste de départ validée. Une carte a une personnalité ; l'IA de combat de la 
 
 *Pas de « Traître » (ne colle pas) ni de fuite (notion inexistante).*
 
+## Terrain
+- **Une seule ligne de 7 cases** par joueur. L'ordre d'action est de gauche à droite.
+- Des **effets de case** sont possibles (ex. les 3 centrales pour les tanks, les extérieures moins ciblées). *Exemple seulement, rien de fixé.*
+
+## Hiérarchie : Général, Colonels, Lieutenants
+- Le joueur est un « shogun / roi ». Sa **carte maîtresse = le Général**. Elle a souvent un effet central sur le gameplay ou le terrain (sinon c'est une carte comme une autre).
+- **1 Général, 2 Colonels** (effets forts), **4 Lieutenants** (effets marginaux).
+- **TEMPORAIRE : n'importe quelle carte peut avoir n'importe quel grade.** On garde deux options ouvertes : (1) tout le monde peut être gradé, (2) les gradés sont une catégorie de cartes à part (plus simple à équilibrer). Décision plus tard, après tests.
+- Hautement personnalisable : le système doit rester souple.
+
+## Deck, main, énergie
+- **Deck : 30 cartes. Main de départ : 7** (on jette des cartes, via l'offrande). **Pioche : 1 par tour.**
+- **Offrande :** sacrifier 1 carte = de l'énergie. Des **cartes exceptionnelles** peuvent donner plus.
+
+## Déploiement
+- Une carte posée **agit au tour suivant** (temps de déploiement), **sauf si elle a un effet passif** qui s'applique tout de suite.
+
+## Cartes : attributs annexes
+Au-delà de PV / Attaque / Coût : race, type, élément, pouvoir, effets spéciaux (voir [02-cards.md](02-cards.md)).
+
 ## À définir
-- Condition de victoire précise (PV du général ? PV séparés ?)
-- Taille du deck, main de départ, pioche
-- Valeur d'énergie d'une offrande (fixe ? selon la carte ? limite par tour ?)
-- Emplacements de pose (nombre de cases, notion de lignes avant/arrière ?)
-- Stats d'une carte (attaque, PV, autre ?)
-- Mal d'invocation (une carte agit-elle dès le tour de pose ?)
-- Résolution des conflits de ciblage, ex. Fidèle sans allié, Rancunier sans attaquant
+- Condition de victoire précise : PV du Général ? du joueur ? Le Général est-il sur le terrain (occupe-t-il une case) ou à part ?
+- Où sont Colonels et Lieutenants : sur les 7 cases, ou dans des emplacements de commandement séparés ? Sont-ils dans les 30 cartes du deck ?
+- Limite d'offrandes par tour, valeur de base d'une offrande
+- Effets de case (à concevoir)
+- Résolution des conflits de ciblage : Fidèle sans allié, Rancunier sans attaquant, deux Fidèles qui se suivent…
 - Fin de partie, égalité, limite de tours
 - Exemple de tour commenté
