@@ -10,6 +10,7 @@
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Structure du code, choix techniques | 🟢 initial |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Publier sur GitHub Pages et itch.io | 🟢 initial |
 | [ROADMAP.md](ROADMAP.md) | Jalons et suivi | 🟡 à remplir après les specs |
+| [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) | Décisions prises et questions ouvertes | 🟢 vivant |
 | [GLOSSARY.md](GLOSSARY.md) | Vocabulaire du jeu (termes FR/EN) | 🟡 à remplir |
 | [decisions/](decisions/) | Décisions structurantes (ADR) | 🟢 |
 

@@ -1,27 +1,25 @@
 # Vision
 
-> Premier jet issu de la discussion du 2026-11-26. À affiner pendant les specs.
+> Mis à jour le 2026-11-26. Statut : cadrage en cours.
 
-- **Pitch :** Un TCG « old school » solo, où l'on cultive un deck de plus en plus fort pour affronter des adversaires successifs, portés par une petite histoire.
+- **Pitch :** Un TCG « old school » solo, où l'on bâtit et entretient une armée de cartes ayant leur propre personnalité, pour affronter des adversaires successifs portés par une histoire.
 - **Forme :** Joueur contre IA uniquement. Pas de multijoueur. « En ligne » = jouable dans le navigateur via un lien partagé.
-- **Structure de campagne :** Une histoire simple mais efficace qui justifie chaque duel (« pourquoi j'affronte X ou Y ? »). La difficulté monte progressivement, ce qui oblige à renforcer le deck, jusqu'à des enjeux de plus en plus grands.
-- **Inspirations de mécaniques :** Codes du **idle game** et de l'**auto-battler** (progression, croissance, résolution partiellement automatique ?) tout en gardant l'âme **TCG** (deck, cartes, collection). *Dosage exact à décider.*
-- **Durée :** Un duel = **2 à 5 minutes**. Le jeu complet est long (campagne).
-- **Public / ton :** Old school, ouvert à l'originalité. *À préciser.*
-- **Plateformes :** Navigateur (desktop, mobile à confirmer).
+- **Campagne :** Une histoire simple mais efficace justifie chaque duel. Difficulté croissante qui force à renforcer son deck, jusqu'à des enjeux de plus en plus grands.
+- **Inspirations :** TCG classique (Magic pour l'énergie), auto-battler (les cartes agissent seules), un soupçon d'idle (**pas prioritaire**, à ajouter si l'occasion se présente).
+- **Durée :** Un duel = **2 à 5 minutes**. Le jeu complet est long.
+- **Plateformes :** Navigateur (desktop ; mobile à confirmer).
+- **Ton :** Old school, ouvert à l'originalité.
 
-## Univers (méta-narration)
-- Le jeu de cartes **est lui-même un jeu à l'intérieur de l'univers fictif** : il a sa propre histoire.
-- **Himiko** est la princesse de ce monde fictif, dans lequel les « cartes » vivent. Himiko est un personnage de l'histoire propre au jeu de cartes.
-- On **cultive** des cartes fortes (guerriers, ninjas, etc.) → le « jardin ».
-- Deux couches d'histoire : celle du monde (Himiko, ses habitants), et celle de la campagne du joueur.
+## Les deux mondes
+Voir [03-world-and-art.md](03-world-and-art.md) pour le détail.
 
-## Questions ouvertes (prochaine session)
-1. Qui est le joueur dans l'histoire ? Himiko elle-même, un jardinier, un joueur du « vrai » monde ?
-2. Que veut dire « cultiver » concrètement : des cartes qui poussent avec le temps (idle), des fusions, de l'XP, des graines/boosters ?
-3. Combat : tour par tour classique, ou auto-battler (on prépare, puis ça se résout) ?
-4. Ressources par duel (mana, énergie, aucune) ?
-5. Progression entre duels : récompenses, boutique, deck-building ?
-6. Sauvegarde : locale au navigateur ? (sans compte)
-7. Thème visuel : japon ancien / ninjas / fantasy ?
-8. Ce que le jeu n'est PAS.
+| | **Monde réel** (cadre) | **Monde d'Himiko** (le jeu de cartes) |
+|---|---|---|
+| Nature | Monde moderne, proche du nôtre | Japon féodal romancé / exagéré, fantasy |
+| Rôle | Où vit le joueur. Himiko's Garden y est un phénomène mondial (type League of Legends) | Où vivent les cartes : guerriers, ninjas, démons… |
+| Thème visuel | « Normal », moderne (menus, collection, boutique) | Japon ancien, fantasy (cartes, duels) |
+
+Le joueur est dans le monde réel et joue avec les personnages du monde d'Himiko. Il y entretient son armée et sa stratégie pour aider Himiko (ou les démons).
+
+## Questions ouvertes
+Suivies dans [OPEN-QUESTIONS.md](../OPEN-QUESTIONS.md).

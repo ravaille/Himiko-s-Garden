@@ -1,6 +1,12 @@
 # Himiko's Garden 🌸
 
-Jeu de cartes jouable dans le navigateur. *(Concept, règles et univers : à définir, voir [docs/](docs/README.md).)*
+Jeu de cartes (TCG solo contre IA) jouable dans le navigateur. *(Concept, règles et univers : voir [docs/](docs/README.md).)*
+
+## ▶️ Jouer
+
+**👉 https://ravaille.github.io/Himiko-s-Garden/**
+
+Ce lien est permanent et toujours à jour : à chaque mise à jour du jeu, il suffit de recharger la page.
 
 ## Démarrer
 
