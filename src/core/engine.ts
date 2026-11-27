@@ -1,7 +1,7 @@
 import { castSpell } from "./effects";
 import { emit } from "./events";
 import { nextRandom, shuffle } from "./rng";
-import type { CardDef, Choice, Config, GameState, Keywords, PlayerState, Target, Unit } from "./types";
+import type { Building, CardDef, Choice, Config, GameState, Keywords, PlayerState, Target, Unit } from "./types";
 
 export const BOARD_SIZE = 7;
 export const FATIGUE_DAMAGE = 10;
@@ -24,6 +24,7 @@ function newPlayer(deck: CardDef[], state: { rngState: number }, cfg: Config): P
     graveyard: [],
     fatigued: false,
     board: new Array<Unit | null>(BOARD_SIZE).fill(null),
+    buildings: new Array<Building | null>(BOARD_SIZE).fill(null),
     maxEnergy: 0,
     energy: 0,
     turnsPlayed: 0,
@@ -121,10 +122,16 @@ export function spellTargets(state: GameState, side: 0 | 1, card: CardDef): Choi
   const foe = side === 0 ? 1 : 0;
   const unitsOf = (s: 0 | 1): Choice[] =>
     state.players[s].board.flatMap((u, slot) => (u ? [{ kind: "unit" as const, side: s, slot }] : []));
+  const buildingsOf = (s: 0 | 1): Choice[] =>
+    state.players[s].buildings.flatMap((b, slot) => (b ? [{ kind: "building" as const, side: s, slot }] : []));
   if (kind === "allyUnit") return unitsOf(side);
   if (kind === "enemyUnit") return unitsOf(foe);
-  return [...unitsOf(foe), { kind: "king", side: foe }];
+  if (kind === "enemyBuilding") return buildingsOf(foe);
+  return [...unitsOf(foe), ...buildingsOf(foe), { kind: "king", side: foe }];
 }
+
+const sameChoice = (a: Choice, b: Choice): boolean =>
+  a.kind === b.kind && a.side === b.side && (a.kind === "king" || (b.kind !== "king" && a.slot === b.slot));
 
 /**
  * Plays a card from the hand. Creatures need a free `slot`. Spells that need a target take a `choice`
@@ -139,7 +146,7 @@ export function playCard(state: GameState, handIndex: number, slot: number, choi
   if (card.kind === "spell") {
     let chosen: Choice | null = null;
     if (card.spell?.target) {
-      const ok = choice && spellTargets(state, side, card).some((t) => t.kind === choice.kind && t.side === choice.side && (t.kind === "king" || (choice.kind === "unit" && t.slot === choice.slot)));
+      const ok = choice && spellTargets(state, side, card).some((t) => sameChoice(t, choice));
       if (!ok) throw new Error("Invalid target");
       chosen = choice!;
     }
@@ -148,6 +155,16 @@ export function playCard(state: GameState, handIndex: number, slot: number, choi
     castSpell(state, side, card, chosen);
     p.graveyard.push(card);
     emit(state, { type: "spell", side, card });
+    return;
+  }
+  if (card.kind === "building") {
+    // A building goes on one of our own slots, whether or not a card stands there; one per slot.
+    if (slot < 0 || slot >= BOARD_SIZE || p.buildings[slot]) throw new Error("Slot unavailable");
+    p.hand.splice(handIndex, 1);
+    p.energy -= card.cost;
+    const building: Building = { uid: state.nextUid++, def: card, hp: card.hp, maxHp: card.hp };
+    p.buildings[slot] = building;
+    emit(state, { type: "buildingPlaced", side, slot, uid: building.uid });
     return;
   }
   if (slot < 0 || slot >= BOARD_SIZE || p.board[slot]) throw new Error("Slot unavailable");
@@ -215,6 +232,11 @@ function beefiest<T extends { unit: Unit }>(list: T[]): T | undefined {
 
 const KING: Target = { kind: "king" };
 
+/** Enemy buildings as targets, left to right. Automatic targeting ignores them, except Demolisher and Berserk. */
+function buildingTargets(enemy: PlayerState): Extract<Target, { kind: "building" }>[] {
+  return enemy.buildings.flatMap((b, slot) => (b ? [{ kind: "building" as const, slot, building: b }] : []));
+}
+
 function chooseTarget(
   state: GameState,
   pi: 0 | 1,
@@ -255,9 +277,26 @@ function chooseTarget(
       enemy.board.forEach((unit, s) => {
         if (unit && canTarget(attacker, unit)) all.push({ kind: "unit", slot: s, unit });
       });
-      const pool = kw(attacker).bushido ? cards : preferNonCowards(all);
+      const pool: Target[] = kw(attacker).bushido ? cards : [...preferNonCowards(all), ...buildingTargets(enemy)];
       if (pool.length === 0) return KING;
       return pool[Math.floor(nextRandom(state) * pool.length)];
+    }
+    case "demolisher": {
+      // Buildings on empty slots first; else the card standing on a building; with none, only retaliates.
+      const bs = buildingTargets(enemy);
+      const bare = bs.find((b) => !enemy.board[b.slot]);
+      if (bare) return bare;
+      for (const b of bs) {
+        const u = enemy.board[b.slot];
+        if (u && canTarget(attacker, u)) return { kind: "unit", slot: b.slot, unit: u };
+      }
+      if (attacker.lastAttackerUid !== null) {
+        for (let s = 0; s < BOARD_SIZE; s++) {
+          const u = enemy.board[s];
+          if (u && u.uid === attacker.lastAttackerUid && canTarget(attacker, u)) return { kind: "unit", slot: s, unit: u };
+        }
+      }
+      return null;
     }
     case "defensive":
       return defensive();
@@ -266,7 +305,9 @@ function chooseTarget(
     case "faithful": {
       for (const t of acted) {
         if (t.kind === "king") return t;
-        if (enemy.board[t.slot] === t.unit && canTarget(attacker, t.unit)) return t;
+        if (t.kind === "building") {
+          if (enemy.buildings[t.slot] === t.building) return t;
+        } else if (enemy.board[t.slot] === t.unit && canTarget(attacker, t.unit)) return t;
       }
       return vengeful();
     }
@@ -280,7 +321,7 @@ function chooseTarget(
 
 /** Guardian: adjacent allies of a guardian are shielded by it, even a ghostly one (attackers blindly hit it). */
 function redirectToGuardian(enemy: PlayerState, t: Target, _attacker: Unit): Target {
-  if (t.kind !== "unit" || t.unit.def.personality === "guardian") return t;
+  if (t.kind === "king" || (t.kind === "unit" && t.unit.def.personality === "guardian")) return t;
   for (const s of [t.slot - 1, t.slot + 1]) {
     const u = enemy.board[s];
     if (u && u.def.personality === "guardian") return { kind: "unit", slot: s, unit: u };
@@ -288,7 +329,8 @@ function redirectToGuardian(enemy: PlayerState, t: Target, _attacker: Unit): Tar
   return t;
 }
 
-const isAlive = (enemy: PlayerState, t: Target): boolean => t.kind === "king" || enemy.board[t.slot] === t.unit;
+const isAlive = (enemy: PlayerState, t: Target): boolean =>
+  t.kind === "king" || (t.kind === "building" ? enemy.buildings[t.slot] === t.building : enemy.board[t.slot] === t.unit);
 
 /** Next target when the current one is gone (Multihit, Piercing): the attacker's usual pick, else the list, else the king. */
 function nextTarget(state: GameState, pi: 0 | 1, slot: number, attacker: Unit): Target {
@@ -317,6 +359,22 @@ export function hurtUnit(
     p.board[slot] = null;
     p.graveyard.push(unit.def);
     emit(state, { type: "died", side, slot, uid: unit.uid, card: unit.def, unit });
+  }
+  return { before, killed };
+}
+
+/** Damages a building; destroyed at 0 HP (goes to the graveyard). */
+export function hurtBuilding(state: GameState, side: 0 | 1, building: Building, amount: number): { before: number; killed: boolean } {
+  const p = state.players[side];
+  const slot = p.buildings.indexOf(building);
+  if (slot < 0) return { before: 0, killed: false };
+  const before = building.hp;
+  building.hp -= amount;
+  const killed = building.hp <= 0;
+  if (killed) {
+    p.buildings[slot] = null;
+    p.graveyard.push(building.def);
+    emit(state, { type: "buildingDestroyed", side, slot, uid: building.uid, card: building.def, building });
   }
   return { before, killed };
 }
@@ -359,6 +417,12 @@ function deal(state: GameState, pi: 0 | 1, from: number, attacker: Unit, t: Targ
     hurtKing(state, foe, amount);
     if (kw(attacker).lifesteal) healUnit(state, pi, attacker, Math.floor(amount / 2));
     return { killed: false, excess: 0 };
+  }
+  if (t.kind === "building") {
+    const r = hurtBuilding(state, foe, t.building, amount);
+    state.events.push({ side: pi, from, to: t.slot, damage: amount, killed: r.killed });
+    if (kw(attacker).lifesteal) healUnit(state, pi, attacker, Math.floor(Math.min(amount, r.before) / 2));
+    return { killed: r.killed, excess: r.killed ? amount - r.before : 0 };
   }
   const victim = t.unit;
   const { before, killed } = hurtUnit(state, foe, victim, amount, attacker);
@@ -432,6 +496,7 @@ export function previewTargets(
     enemy.board.forEach((unit, s) => {
       if (unit && canTarget(ghost, unit)) all.push({ kind: "unit", slot: s, unit });
     });
+    all.push(...buildingTargets(enemy));
     return { targets: all.length > 0 ? all : [KING], note: "au hasard parmi tous les ennemis" };
   }
   if (def.personality === "passive") return { targets: [], note: "n'attaque pas" };

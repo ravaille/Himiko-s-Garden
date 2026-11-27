@@ -107,4 +107,13 @@ Le **Gardien** dévie même vers un Spectral (l'IA frappe bêtement le Gardien s
 - **Équipement** = sort qui buffe une carte alliée (cumulable, permanent).
 - **Déclencheurs de sort** : « quand tu lances un sort » (ses propres sorts) et « quand un sort est lancé » (tous).
 - **Nouvelles actions** : détruire, invoquer (jeton) sur la première case libre, centre d'abord (échoue sans erreur si le terrain est plein). Nouvelle cible : « la cible » choisie.
-- **Pas encore** : bâtiments (étape 4b) et IA qui lance des sorts (l'IA de base les sacrifie).
+- **Pas encore** : IA qui lance des sorts / pose des bâtiments (l'IA de base les sacrifie).
+
+## Bâtiments et Démolisseur (étape 4b, 2026-11-27)
+- Un bâtiment se pose **sur une de ses propres cases** (jamais chez l'adversaire), **une seule par case**, **même sous une carte**. Il coûte de l'énergie et est **actif tout de suite**.
+- Il a des PV ; détruit, il va au cimetière. Les attaques automatiques **l'ignorent**, sauf le **Démolisseur** et le **Berzerk** (hasard sur tout, bâtiments compris).
+- **Démolisseur** : bâtiment sur case vide d'abord ; sinon la carte posée sur un bâtiment ; sans bâtiment ennemi : riposte seulement (n'attaque que qui l'a touché).
+- Le **Gardien** protège les bâtiments voisins. Perforant et Multihit fonctionnent sur les bâtiments.
+- **Sorts** : par défaut ils **peuvent cibler les bâtiments** (cible « ennemi, bâtiment ou Roi »). Seule une carte explicite (« ennemi » = cartes seulement, « bâtiment ennemi » = bâtiments seulement) restreint. Les sorts de zone et « tous les ennemis » (dégâts, destruction) touchent aussi les bâtiments.
+- **Effets de bâtiment** : mêmes déclencheurs que les cartes, plus « quand cette case est attaquée » (même case vide) ; cible « la carte sur cette case ». Un bâtiment ne peut pas cibler les Spectraux.
+- **Pas encore** : le bâtiment qui se transforme en unité (Tsukumogami), les bâtiments-jetons posés par un sort, le Stratège sur un bâtiment.

@@ -93,7 +93,10 @@ function boardHtml(side: 0 | 1): string {
     const centre = i >= 2 && i <= 4 ? " centre" : "";
     const wait = u && isDeploying(p, u) ? " deploying" : "";
     const ok = valid.some((t) => t.kind === "unit" && t.side === side && t.slot === i) ? " valid" : "";
-    cells += `<div class="slot${centre}${wait}${ok}" data-side="${side}" data-slot="${i}">${u ? cardHtml(u.def, u.hp, u.attack, u.maxHp) : ""}${wait ? '<span class="zzz">💤</span>' : ""}</div>`;
+    const b = p.buildings[i];
+    const bOk = valid.some((t) => t.kind === "building" && t.side === side && t.slot === i) ? " valid" : "";
+    const bld = b ? `<div class="bld${bOk}" data-bld="1" title="${b.def.name} : ${b.def.text ?? ""}">🏯 ${b.def.name} ♥${b.hp}</div>` : "";
+    cells += `<div class="slot${centre}${wait}${ok}" data-side="${side}" data-slot="${i}">${u ? cardHtml(u.def, u.hp, u.attack, u.maxHp) : ""}${bld}${wait ? '<span class="zzz">💤</span>' : ""}</div>`;
   }
   return `<div class="board">${cells}</div>`;
 }
@@ -199,7 +202,7 @@ function onHover(e: MouseEvent): void {
   if (!slotEl || slotEl.querySelector(".card")) return;
   const slot = Number(slotEl.dataset.slot);
   const def = game.players[HUMAN].hand[selected];
-  if (!def || def.kind === "spell") return;
+  if (!def || (def.kind && def.kind !== "creature")) return;
   const { targets, note } = previewTargets(game, HUMAN, slot, def);
   for (const t of targets) {
     const el =
@@ -209,7 +212,10 @@ function onHover(e: MouseEvent): void {
     el?.classList.add("target");
   }
   let who = "";
-  if (targets.length === 1) who = targets[0].kind === "king" ? "frappera le Roi adverse" : `frappera ${targets[0].unit.def.name}`;
+  if (targets.length === 1) {
+    const t0 = targets[0];
+    who = t0.kind === "king" ? "frappera le Roi adverse" : `frappera ${t0.kind === "building" ? t0.building.def.name : t0.unit.def.name}`;
+  }
   const hint = root.querySelector<HTMLElement>("#hint");
   if (hint) hint.textContent = `🎯 ${def.name} : ${note ?? (who || "n'attaquera pas")} · ${def.keywords?.haste ? "agira dès ce tour" : "agira au prochain tour"}`;
 }
@@ -281,11 +287,16 @@ function onClick(e: MouseEvent): void {
   if (picked && picked.kind === "spell" && (anySlot || kingEl)) {
     // Spells are played on the board: on their target, or anywhere when they need none (avoids mis-clicks).
     const side = Number((anySlot ?? kingEl)!.dataset.side) as 0 | 1;
-    const choice: Choice | undefined = kingEl
-      ? { kind: "king", side }
-      : game.players[side].board[Number(anySlot!.dataset.slot)]
-        ? { kind: "unit", side, slot: Number(anySlot!.dataset.slot) }
-        : undefined;
+    const slotNo = Number(anySlot?.dataset.slot);
+    const candidates: Choice[] = kingEl
+      ? [{ kind: "king", side }]
+      : t.closest(".bld")
+        ? [{ kind: "building", side, slot: slotNo }]
+        : [{ kind: "unit", side, slot: slotNo }, { kind: "building", side, slot: slotNo }];
+    // On a slot holding both a card and a building, the legal one is picked (the banner forces the building).
+    const legal = spellTargets(game, HUMAN, picked);
+    const same = (a: Choice, b: Choice) => a.kind === b.kind && a.side === b.side && (a.kind === "king" || (b.kind !== "king" && a.slot === b.slot));
+    const choice: Choice | undefined = candidates.find((c) => legal.some((l) => same(l, c))) ?? candidates[0];
     try {
       playCard(game, selected!, 0, choice);
       message = `${picked.name} est lancé${picked.spell?.target ? "" : " (effet immédiat)"}.`;
@@ -301,7 +312,7 @@ function onClick(e: MouseEvent): void {
     try {
       const c = me.hand[selected];
       playCard(game, selected, Number(slotEl.dataset.slot));
-      message = `${c.name} est posée. ${c.keywords?.haste ? "Elle agit dès ce tour (Célérité)." : "Elle agira au prochain tour."}`;
+      message = c.kind === "building" ? `${c.name} est posé : actif tout de suite.` : `${c.name} est posée. ${c.keywords?.haste ? "Elle agit dès ce tour (Célérité)." : "Elle agira au prochain tour."}`;
       selected = null;
     } catch (err) {
       message = `⚠️ ${(err as Error).message === "Not enough energy" ? "Pas assez d'énergie." : "Case indisponible."}`;

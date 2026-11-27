@@ -9,7 +9,8 @@ export type Personality =
   | "faithful"
   | "strategist"
   | "defensive"
-  | "passive";
+  | "passive"
+  | "demolisher";
 
 export type Rank = "general" | "colonel" | "lieutenant";
 
@@ -47,7 +48,8 @@ export type Trigger =
   | "draw" // when its owner draws a card
   | "sacrifice" // when its owner sacrifices a card
   | "spell" // when its owner casts a spell
-  | "anySpell"; // when anyone casts a spell
+  | "anySpell" // when anyone casts a spell
+  | "slotAttacked"; // when an enemy attacks this slot (buildings)
 
 /** Who an action applies to, relative to the card carrying the effect. */
 export type Selector =
@@ -61,7 +63,8 @@ export type Selector =
   | "enemyKing"
   | "ownKing"
   | "source" // the card that just damaged it
-  | "chosen"; // the target picked by the player when casting a spell
+  | "chosen" // the target picked by the player when casting a spell
+  | "slotUnit"; // the friendly card on the same slot as this building
 
 export type Action =
   | { kind: "damage"; to: Selector; amount: number }
@@ -77,7 +80,8 @@ export type Action =
   | { kind: "energy"; amount: number };
 
 /** What a spell asks the player to pick when it is cast (none = it can be dropped on any slot). */
-export type SpellTarget = "enemyUnit" | "allyUnit" | "enemyAny"; // enemyAny = an enemy card or the enemy king
+/** enemyAny = an enemy card, an enemy building or the enemy king (spells may hit buildings unless a card says otherwise). */
+export type SpellTarget = "enemyUnit" | "allyUnit" | "enemyBuilding" | "enemyAny";
 
 export interface Spell {
   target?: SpellTarget;
@@ -85,7 +89,10 @@ export interface Spell {
 }
 
 /** A target picked by the player. */
-export type Choice = { kind: "unit"; side: 0 | 1; slot: number } | { kind: "king"; side: 0 | 1 };
+export type Choice =
+  | { kind: "unit"; side: 0 | 1; slot: number }
+  | { kind: "building"; side: 0 | 1; slot: number }
+  | { kind: "king"; side: 0 | 1 };
 
 export interface Effect {
   on: Trigger;
@@ -116,7 +123,7 @@ export interface CardDef {
   types?: string[];
   keywords?: Keywords;
   /** `spell` cards are cast from the hand and go to the graveyard; equipment is a spell that buffs a card. Default: creature. */
-  kind?: "creature" | "spell";
+  kind?: "creature" | "spell" | "building";
   spell?: Spell;
   /** Tokens are summoned by effects and never appear in the collection. */
   token?: boolean;
@@ -128,6 +135,14 @@ export interface CardDef {
   offering?: number;
   /** Optional rules text shown on the card (effects come later). */
   text?: string;
+}
+
+/** A building: attached to one of its owner's slots, next to (not instead of) the card standing there. */
+export interface Building {
+  uid: number;
+  def: CardDef;
+  hp: number;
+  maxHp: number;
 }
 
 /** A card on the board. */
@@ -156,6 +171,8 @@ export interface PlayerState {
   /** True if the last draw failed (empty deck: -10 king HP). */
   fatigued: boolean;
   board: (Unit | null)[];
+  /** One building per slot at most; it does not block a card from standing on the same slot. */
+  buildings: (Building | null)[];
   maxEnergy: number;
   energy: number;
   turnsPlayed: number;
@@ -178,6 +195,8 @@ export type GameEvent =
   | { type: "played"; side: 0 | 1; slot: number; uid: number }
   | { type: "sacrificed"; side: 0 | 1; card: CardDef }
   | { type: "spell"; side: 0 | 1; card: CardDef }
+  | { type: "buildingPlaced"; side: 0 | 1; slot: number; uid: number }
+  | { type: "buildingDestroyed"; side: 0 | 1; slot: number; uid: number; card: CardDef; building: Building }
   /** `side` attacks; `target` is a slot on the other side or the king. */
   | { type: "attack"; side: 0 | 1; slot: number; uid: number; target: number | "king" }
   /** A card of `side` took damage. */
@@ -205,7 +224,8 @@ export interface GameState {
 
 export type Target =
   | { kind: "king" }
-  | { kind: "unit"; slot: number; unit: Unit };
+  | { kind: "unit"; slot: number; unit: Unit }
+  | { kind: "building"; slot: number; building: Building };
 
 export interface Config {
   kingHp: number;

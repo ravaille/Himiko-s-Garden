@@ -13,6 +13,7 @@ const TRIGGER: Record<Trigger, string> = {
   sacrifice: "Quand tu sacrifies une carte",
   spell: "Quand tu lances un sort",
   anySpell: "Quand un sort est lancé",
+  slotAttacked: "Quand cette case est attaquée",
 };
 
 const SELECTOR: Record<Selector, string> = {
@@ -27,6 +28,7 @@ const SELECTOR: Record<Selector, string> = {
   ownKing: "ton Roi",
   source: "l'attaquant",
   chosen: "la cible",
+  slotUnit: "la carte sur cette case",
 };
 
 function actionText(a: Action): string {
@@ -54,7 +56,12 @@ function actionText(a: Action): string {
 export function effectLines(def: CardDef): string[] {
   const lines: string[] = [];
   if (def.kind === "spell" && def.spell) {
-    const who = { enemyUnit: "Cible : un ennemi.", allyUnit: "Cible : un allié.", enemyAny: "Cible : un ennemi ou le Roi adverse." };
+    const who = {
+      enemyUnit: "Cible : un ennemi.",
+      allyUnit: "Cible : un allié.",
+      enemyBuilding: "Cible : un bâtiment ennemi.",
+      enemyAny: "Cible : un ennemi, un bâtiment ou le Roi adverse.",
+    };
     const first = def.spell.target ? who[def.spell.target] : "Se joue n'importe où.";
     lines.push(`${first} ${def.spell.do.map(actionText).join(", ")}.`);
   }
@@ -110,4 +117,5 @@ export const PERSONALITY: Record<Personality, { icon: string; label: string; hel
   strategist: { icon: "🧠", label: "Stratège", help: "Suivra tes ordres (bientôt)." },
   defensive: { icon: "🏯", label: "Défensif", help: "N'attaque que s'il est sûr de tuer sa cible." },
   passive: { icon: "🍃", label: "Passif", help: "N'attaque pas." },
+  demolisher: { icon: "🔨", label: "Démolisseur", help: "Détruit les bâtiments ennemis (sur case vide, sinon la carte dessus). Sans bâtiment : riposte seulement." },
 };

@@ -165,12 +165,28 @@ const SPELLS: CardDef[] = [
   sp("pact", "Pacte de sang", 1, { do: [{ kind: "damage", to: "ownKing", amount: 20 }, { kind: "summon", card: SKELETON, count: 2 }] }, { race: "demon" }),
 ];
 
+function bld(id: string, name: string, cost: number, hp: number, effects: Effect[], extra: Partial<CardDef> = {}): CardDef {
+  return { id: `bld-${id}`, name, cost, attack: 0, hp, personality: "none", kind: "building", effects, ...extra };
+}
+
+const BUILDINGS: CardDef[] = [
+  bld("mage-tower", "Tour du mage", 2, 15, [{ on: "spell", do: [{ kind: "buff", to: "slotUnit", attack: 5 }] }], { types: ["mage"] }),
+  bld("crypt", "Crypte", 3, 20, [{ on: "turnStart", do: [{ kind: "summon", card: SKELETON }] }], { race: "demon" }),
+  bld("torii", "Torii", 2, 20, [{ on: "slotAttacked", do: [{ kind: "damage", to: "source", amount: 10 }] }]),
+  bld("altar", "Autel", 2, 15, [{ on: "turnStart", do: [{ kind: "heal", to: "slotUnit", amount: 5 }] }]),
+];
+
+const DEMOLISHERS: CardDef[] = [
+  fx("demolisher", "Démolisseur", 3, 24, 36, "demolisher", "human", [], { types: ["ronin"] }),
+  sp("demolition", "Démolition", 2, { target: "enemyBuilding", do: [{ kind: "destroy", to: "chosen" }] }),
+];
+
 const MAGES: CardDef[] = [
   fx("apprentice", "Apprentie mage", 1, 8, 12, "passive", "human", [{ on: "spell", do: [{ kind: "damage", to: "enemyKing", amount: 5 }] }], { types: ["mage"] }),
   fx("archmage", "Archimage", 4, 20, 60, "passive", "human", [{ on: "spell", do: [{ kind: "draw", count: 1 }] }], { types: ["mage"], rank: "lieutenant" }),
 ];
 
-export const COLLECTION: CardDef[] = [...GENERALS, ...tagged(), ...ONI_CARDS, ...SPIRITS, ...EFFECT_CARDS, ...MAGES, ...SPELLS];
+export const COLLECTION: CardDef[] = [...GENERALS, ...tagged(), ...ONI_CARDS, ...SPIRITS, ...EFFECT_CARDS, ...MAGES, ...SPELLS, ...BUILDINGS, ...DEMOLISHERS];
 
 export function cardById(id: string): CardDef | undefined {
   return COLLECTION.find((c) => c.id === id);

@@ -12,6 +12,18 @@ function cardText(def: CardDef): string {
   return lines.join(" ");
 }
 
+function buildingHtml(def: CardDef, hp: number): string {
+  const text = cardText(def);
+  return `<div class="card kind-building has-text" title="Bâtiment : se pose sur l'une de tes cases, actif tout de suite. Les attaques automatiques l'ignorent (sauf Démolisseur et Berzerk).">
+    <div class="cost">${def.cost}</div>
+    <div class="name">${def.name}</div>
+    <div class="art">🏯</div>
+    <div class="text">${text}</div>
+    <div class="pers">Bâtiment</div>
+    <div class="stats"><span class="hp">♥ ${hp}</span></div>
+  </div>`;
+}
+
 function spellHtml(def: CardDef): string {
   const text = cardText(def);
   const isEquip = def.spell?.target === "allyUnit" && def.spell.do.some((a) => a.kind === "buff");
@@ -32,6 +44,7 @@ function spellHtml(def: CardDef): string {
  */
 export function cardHtml(def: CardDef, hp: number = def.hp, attack: number = def.attack, maxHp: number = def.hp): string {
   if (def.kind === "spell") return spellHtml(def);
+  if (def.kind === "building") return buildingHtml(def, hp);
   const p = PERSONALITY[def.personality];
   const damaged = hp < maxHp ? " damaged" : "";
   const buffedAtk = attack > def.attack ? " buffed" : attack < def.attack ? " damaged" : "";
