@@ -102,6 +102,19 @@ const DEMON_GENERALS: CardDef[] = [
   },
 ];
 
+const PROFESSOR: CardDef = {
+  id: "gen-professor",
+  name: "Professeur Tanaka",
+  cost: 7,
+  attack: 30,
+  hp: 90,
+  personality: "passive",
+  rank: "general",
+  race: "human",
+  types: ["tutor"],
+  effects: [{ on: "turnStart", do: [{ kind: "freePlay", filter: { maxCost: 3 } }] }],
+};
+
 const GENERALS: CardDef[] = [
   {
     id: "gen-shuten",
@@ -128,8 +141,10 @@ const GENERALS: CardDef[] = [
     race: "human",
     types: ["samurai", "daimyo"],
     effects: [
-      { on: "passive", do: [{ kind: "grantType", to: "allies", type: "samurai" }] },
+      { on: "passive", do: [{ kind: "grantType", to: "allies", type: "samurai" }, { kind: "grantType", to: "self", type: "oni" }, { kind: "grantType", to: "allies", type: "oni" }] },
       { on: "passive", do: [{ kind: "aura", to: "allies", where: { type: "samurai" }, attack: 5 }] },
+      // Every card counts as [samurai] and [oni]: each one sends 10 % of the damage it takes back to its attacker.
+      { on: "allyDamaged", subject: { type: "oni" }, do: [{ kind: "damage", to: "source", amount: { pct: 10, of: "eventDamage" } }] },
     ],
   },
 ];
@@ -192,7 +207,7 @@ const SPELLS: CardDef[] = [
   sp("fireball", "Boule de feu", 2, { target: "enemyAny", do: [{ kind: "damage", to: "chosen", amount: 20 }] }, { types: ["mage"] }),
   sp("chain", "Éclair en chaîne", 3, { do: [{ kind: "damage", to: "enemies", amount: 10 }] }, { types: ["mage"] }),
   sp("study", "Étude", 1, { do: [{ kind: "draw", count: 2 }] }, { types: ["mage"] }),
-  sp("blade", "Katana béni", 1, { target: "allyUnit", do: [{ kind: "buff", to: "chosen", attack: 10 }] }),
+  sp("blade", "Katana béni", 1, { target: "allyUnit", do: [{ kind: "buff", to: "chosen", attack: 10 }] }, { equipment: true }),
   sp("execution", "Exécution", 3, { target: "enemyUnit", do: [{ kind: "destroy", to: "chosen" }] }),
   sp("onsen", "Source chaude", 2, { do: [{ kind: "heal", to: "allies", amount: 15 }] }),
   sp("pact", "Pacte de sang", 1, { do: [{ kind: "damage", to: "ownKing", amount: 20 }, { kind: "summon", card: SKELETON, count: 2 }] }, { race: "demon" }),
@@ -215,7 +230,10 @@ const DEMOLISHERS: CardDef[] = [
 ];
 
 const SCALING: CardDef[] = [
-  fx("ronin", "Ronin solitaire", 2, 14, 14, "vengeful", "human", [{ on: "passive", if: [{ of: { of: "allyUnits" }, op: "<=", value: 3 }], do: [{ kind: "aura", to: "self", attack: 15, hp: 10 }] }], { types: ["ronin"] }),
+  fx("ronin", "Ronin solitaire", 2, 14, 14, "vengeful", "human", [
+    { on: "passive", if: [{ of: { of: "allyUnits" }, op: "<=", value: 3 }], do: [{ kind: "aura", to: "self", hp: 10 }] },
+    { on: "passive", do: [{ kind: "aura", to: "self", attack: { per: 10, of: { of: "selfEquipment" } } }] },
+  ], { types: ["ronin"] }),
   fx("student", "Élève", 3, 18, 24, "brave", "human", [{ on: "passive", do: [{ kind: "aura", to: "self", attack: { per: 10, of: { of: "allyUnits", filter: { type: "student" }, others: true } } }] }], { types: ["student"] }),
   fx("monitor", "Délégué", 2, 10, 16, "brave", "human", [{ on: "passive", do: [{ kind: "aura", to: "self", attack: { per: 5, of: { of: "allyUnits", filter: { type: "student" }, others: true } } }] }], { types: ["student"] }),
   fx("ghoul", "Goule", 2, 10, 14, "brave", "demon", [{ on: "passive", do: [{ kind: "aura", to: "self", attack: { per: 3, of: { of: "ownGraveyard" } } }] }], { types: ["ghoul"] }),
@@ -228,7 +246,7 @@ const MAGES: CardDef[] = [
   fx("archmage", "Archimage", 4, 20, 60, "passive", "human", [{ on: "spell", do: [{ kind: "draw", count: 1 }] }], { types: ["mage"], rank: "lieutenant" }),
 ];
 
-export const COLLECTION: CardDef[] = [...GENERALS, ...DEMON_GENERALS, ...tagged(), ...ONI_CARDS, ...SPIRITS, ...EFFECT_CARDS, ...MAGES, ...SPELLS, ...BUILDINGS, ...DEMOLISHERS, ...SCALING];
+export const COLLECTION: CardDef[] = [...GENERALS, PROFESSOR, ...DEMON_GENERALS, ...tagged(), ...ONI_CARDS, ...SPIRITS, ...EFFECT_CARDS, ...MAGES, ...SPELLS, ...BUILDINGS, ...DEMOLISHERS, ...SCALING];
 
 export function cardById(id: string): CardDef | undefined {
   return COLLECTION.find((c) => c.id === id);

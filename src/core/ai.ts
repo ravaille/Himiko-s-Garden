@@ -1,4 +1,5 @@
-import { BOARD_SIZE, DEFAULT_CONFIG, actionPhase, beginTurn, endTurn, offer, playCard, spellTargets } from "./engine";
+import { cardMatchesFilter } from "./effects";
+import { BOARD_SIZE, DEFAULT_CONFIG, actionPhase, beginTurn, endTurn, offer, playCard, playFree, spellTargets } from "./engine";
 import type { CardDef, Choice, Config, GameState } from "./types";
 
 /** Slot preference: centre first (most exposed but most protective), outer slots last. */
@@ -80,6 +81,17 @@ export function poseAI(state: GameState): void {
       if (better) best = i;
     });
     offer(state, best);
+  }
+
+  // Free placements granted by effects (e.g. a Professor General): use them on the strongest matching cards.
+  while (p.freePlays.length > 0) {
+    const slot = SLOT_ORDER.find((s) => !p.board[s]);
+    const pick = p.hand
+      .map((card, index) => ({ card, index }))
+      .filter((o) => isCreature(o.card) && p.freePlays.some((f) => cardMatchesFilter(o.card, f)))
+      .sort((a, b) => value(b.card) - value(a.card))[0];
+    if (slot === undefined || !pick) break;
+    playFree(state, pick.index, slot);
   }
 
   while (state.winner === null) {

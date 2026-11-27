@@ -16,6 +16,7 @@ const TRIGGER: Record<Trigger, string> = {
   slotAttacked: "Quand cette case est attaquée",
   passive: "Passif",
   drawFailed: "Quand ta pioche est vide",
+  allyDamaged: "Quand une de tes cartes est touchée",
 };
 
 const SELECTOR: Record<Selector, string> = {
@@ -46,6 +47,7 @@ const COUNTER: Record<Counter, string> = {
   enemyKingHp: "PV du Roi adverse",
   ownKingPct: "% de PV de ton Roi",
   enemyKingPct: "% de PV du Roi adverse",
+  selfEquipment: "équipement porté",
 };
 
 function filterText(f: CardFilter | undefined): string {
@@ -94,6 +96,10 @@ function actionText(a: Action): string {
       return `+${amountText(a.amount)}⚡ ce tour`;
     case "win":
       return "tu gagnes la partie";
+    case "freePlay":
+      return a.random
+        ? `pose gratuitement au hasard une carte de ta main (${filterText(a.filter) || "toutes"})`
+        : `pose gratuitement une carte de ta main de ton choix (${filterText(a.filter) || "toutes"})`;
   }
 }
 
@@ -110,7 +116,7 @@ export function effectLines(def: CardDef): string[] {
     const first = def.spell.target ? who[def.spell.target] : "Se joue n'importe où.";
     lines.push(`${first} ${def.spell.do.map(actionText).join(", ")}.`);
   }
-  return lines.concat((def.effects ?? []).map((e: Effect) => `${e.zone === "deck" ? "Depuis le deck · " : ""}${TRIGGER[e.on]}${e.replaces === "fatigue" ? " (au lieu de perdre 10 PV)" : ""}${e.if?.length ? ` (si ${e.if.map(conditionText).join(" et ")})` : ""} : ${e.do.map(actionText).join(", ")}.`));
+  return lines.concat((def.effects ?? []).map((e: Effect) => `${e.zone === "deck" ? "Depuis le deck · " : ""}${TRIGGER[e.on]}${e.subject ? ` (cartes ${filterText(e.subject)})` : ""}${e.replaces === "fatigue" ? " (au lieu de perdre 10 PV)" : ""}${e.if?.length ? ` (si ${e.if.map(conditionText).join(" et ")})` : ""} : ${e.do.map(actionText).join(", ")}.`));
 }
 
 /** Display text of the keywords a card has. */

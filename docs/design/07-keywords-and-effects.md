@@ -133,7 +133,7 @@ Le **Gardien** dévie même vers un Spectral (l'IA frappe bêtement le Gardien s
 - **Types accordés** (`grantType`) : « toutes vos cartes comptent comme [samourai] » ; accordés **avant** les filtres des autres auras, et comptés par les mesures.
 - Le bonus d'un passif est du vrai stat : utilisé par le combat, affiché en bleu sur la carte.
 - Les Généraux Shuten (Oni +20/+10) et Shogun (tous samouraï, +5 ATK aux samouraï) utilisent maintenant leurs effets réels.
-- **Pas encore** : le renvoi de 10 % du Général Samouraï, les équipements comptés par le Ronin, le Professeur (choix en pleine pose), les durées limitées.
+- **Pas encore** : les durées limitées.
 
 ## Effets depuis le deck : Général Démon (étape 7, 2026-11-27)
 - Un effet peut avoir `zone: "deck"` : il est **actif dès que la carte fait partie du deck de départ**, où qu'elle soit (pioche, main, terrain, cimetière). Les effets sans zone ne marchent que depuis le terrain (et inversement).
@@ -149,3 +149,9 @@ Le **Gardien** dévie même vers un Spectral (l'IA frappe bêtement le Gardien s
 - **Offrande** : elle sacrifie la carte la plus faible ; un sort ou bâtiment vaut ≈ 20 points par énergie de coût, comme une créature.
 - **Limites connues** : pas d'ordre donné aux Stratèges (ils jouent en Brave), pas de plan à plusieurs tours, pas de garde d'énergie pour un gros sort.
 - Le deck de l'adversaire dans l'interface est maintenant tiré **une fois** de la collection (40 cartes, sorts et bâtiments compris) au lieu du deck de test à créatures seules.
+
+## Les derniers effets du brouillon (2026-11-27)
+- **Renvoi de dégâts par carte** : déclencheur « quand une de tes cartes est touchée » (`allyDamaged`, elle-même comprise) + `subject` (filtre sur la carte touchée). Le **Shogun** accorde [samourai] et [oni] à toutes tes cartes ; chacune renvoie **10 %** des dégâts reçus à son attaquant.
+- **Équipement compté** : un sort marqué `equipment` reste compté sur la carte qui le porte (mesure « équipement porté »). Le **Ronin solitaire** gagne +10 ATK par équipement et +10 PV tant que tu as 3 cartes ou moins.
+- **Pose gratuite** (`freePlay`, **Général Professeur**) : au début de ton tour, tu peux poser **gratuitement** une carte de ta main (créature ou bâtiment, coût ≤ 3) **de ton choix**, sur une case libre. Bouton « 🎁 Pose gratuite » dans l'interface, puis clic sur la carte et sur la case. Non utilisée, elle **expire en fin de tour**. Variante `random` (version « nerfée ») : une carte éligible est posée au hasard, tout de suite. L'IA l'utilise sur sa meilleure carte éligible.
+- Tous les effets du brouillon de premier set (11-first-set.md) sont maintenant exprimables ; reste à écrire les cartes.

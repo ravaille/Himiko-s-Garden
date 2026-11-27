@@ -50,6 +50,7 @@ export type Trigger =
   | "spell" // when its owner casts a spell
   | "anySpell" // when anyone casts a spell
   | "slotAttacked" // when an enemy attacks this slot (buildings)
+  | "allyDamaged" // when one of its owner's cards (itself included) is hit; narrow it with `subject`
   | "drawFailed" // when its owner has to draw from an empty deck
   | "passive"; // always on: recomputed continuously (auras), never "fires"
 
@@ -82,7 +83,9 @@ export type Counter =
   | "enemyKingHp"
   /** % of the starting king HP (can exceed 100 after healing). */
   | "ownKingPct"
-  | "enemyKingPct";
+  | "enemyKingPct"
+  /** Equipment worn by the card carrying the effect. */
+  | "selfEquipment";
 
 /** Restricts which cards are counted or affected. */
 export interface CardFilter {
@@ -130,7 +133,12 @@ export type Action =
   /** Temporary energy for this turn. */
   | { kind: "energy"; amount: Amount }
   /** The effect's owner wins the duel on the spot. */
-  | { kind: "win" };
+  | { kind: "win" }
+  /**
+   * Lets the owner put a card from their hand (matching `filter`) on the board for free: the player picks it during the
+   * placement phase (unused picks expire at the end of the turn); with `random`, a matching creature is placed at once.
+   */
+  | { kind: "freePlay"; filter: CardFilter; random?: boolean };
 
 /** What a spell asks the player to pick when it is cast (none = it can be dropped on any slot). */
 /** enemyAny = an enemy card, an enemy building or the enemy king (spells may hit buildings unless a card says otherwise). */
@@ -156,6 +164,8 @@ export interface Effect {
    * the player's deck, wherever it currently is (docs/design/07: Demon General).
    */
   zone?: "board" | "deck";
+  /** For effects about another card (allyDamaged...): only when that card matches. */
+  subject?: CardFilter;
   /** The effect replaces a default rule: "fatigue" = the king no longer loses 10 HP when drawing from an empty deck. */
   replaces?: "fatigue";
   do: Action[];
@@ -186,6 +196,8 @@ export interface CardDef {
   keywords?: Keywords;
   /** `spell` cards are cast from the hand and go to the graveyard; equipment is a spell that buffs a card. Default: creature. */
   kind?: "creature" | "spell" | "building";
+  /** A spell that buffs a card and counts as equipment worn by it. */
+  equipment?: boolean;
   spell?: Spell;
   /** Tokens are summoned by effects and never appear in the collection. */
   token?: boolean;
@@ -228,6 +240,8 @@ export interface Unit {
   auraHp?: number;
   /** Types granted by passive effects. */
   auraTypes?: string[];
+  /** Equipment spells resolved on this card. */
+  equipped?: number;
   /** Strategist only: the target the player picked; kept until the target is gone or a new order is given. */
   order?: Order;
   /** uids of the cards that damaged this one (-1 = something else), for Bushido. */
@@ -239,6 +253,8 @@ export interface PlayerState {
   deck: CardDef[];
   /** The cards the deck started with (for effects that work "from the deck"). */
   decklist: CardDef[];
+  /** Free placements granted this turn (see the freePlay action); they expire at the end of the turn. */
+  freePlays: CardFilter[];
   hand: CardDef[];
   /** Dead and sacrificed cards. */
   graveyard: CardDef[];

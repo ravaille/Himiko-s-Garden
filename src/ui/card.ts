@@ -26,7 +26,7 @@ function buildingHtml(def: CardDef, hp: number): string {
 
 function spellHtml(def: CardDef): string {
   const text = cardText(def);
-  const isEquip = def.spell?.target === "allyUnit" && def.spell.do.some((a) => a.kind === "buff");
+  const isEquip = def.equipment ?? (def.spell?.target === "allyUnit" && def.spell.do.some((a) => a.kind === "buff"));
   const label = isEquip ? "Équipement" : "Sort";
   return `<div class="card kind-spell has-text" title="${label} : se joue depuis la main, puis va au cimetière.">
     <div class="cost">${def.cost}</div>

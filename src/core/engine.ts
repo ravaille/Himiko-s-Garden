@@ -1,4 +1,4 @@
-import { castSpell, fatigueReplaced, refreshAuras } from "./effects";
+import { castSpell, cardMatchesFilter, fatigueReplaced, refreshAuras } from "./effects";
 import { emit } from "./events";
 import { nextRandom, shuffle } from "./rng";
 import type { Building, CardDef, Choice, Config, GameState, Keywords, Order, PlayerState, Target, Unit } from "./types";
@@ -21,6 +21,7 @@ function newPlayer(deck: CardDef[], state: { rngState: number }, cfg: Config): P
     kingHp: cfg.kingHp,
     deck: shuffled.slice(cfg.handSize),
     decklist: deck.slice(),
+    freePlays: [],
     hand: shuffled.slice(0, cfg.handSize),
     graveyard: [],
     fatigued: false,
@@ -63,6 +64,7 @@ export function beginTurn(state: GameState): void {
   p.turnsPlayed++;
   p.fatigued = false;
   state.trace = [];
+  p.freePlays = [];
   p.energy = p.maxEnergy;
   // Second player's compensation: +1 temporary energy on their first turn.
   if (state.current === 1 && p.turnsPlayed === 1) p.energy += 1;
@@ -109,6 +111,31 @@ function placeUnit(state: GameState, side: 0 | 1, card: CardDef, slot: number): 
   p.board[slot] = unit;
   emit(state, { type: "played", side, slot, uid: unit.uid });
   return unit;
+}
+
+function placeBuilding(state: GameState, side: 0 | 1, card: CardDef, slot: number): Building {
+  const building: Building = { uid: state.nextUid++, def: card, hp: card.hp, maxHp: card.hp };
+  state.players[side].buildings[slot] = building;
+  emit(state, { type: "buildingPlaced", side, slot, uid: building.uid });
+  return building;
+}
+
+/**
+ * Places a card from the hand for free, using one of the side's pending free placements (see the freePlay action).
+ * Works for creatures (free slot) and buildings (slot without building); spells cannot be placed.
+ */
+export function playFree(state: GameState, handIndex: number, slot: number, side: 0 | 1 = state.current): void {
+  const p = state.players[side];
+  const card = p.hand[handIndex];
+  if (!card || card.kind === "spell") throw new Error("Cannot place this card");
+  const pending = p.freePlays.findIndex((f) => cardMatchesFilter(card, f));
+  if (pending < 0) throw new Error("No free placement for this card");
+  const taken = card.kind === "building" ? p.buildings[slot] : p.board[slot];
+  if (slot < 0 || slot >= BOARD_SIZE || taken) throw new Error("Slot unavailable");
+  p.freePlays.splice(pending, 1);
+  p.hand.splice(handIndex, 1);
+  if (card.kind === "building") placeBuilding(state, side, card, slot);
+  else placeUnit(state, side, card, slot);
 }
 
 /** Puts a card (token) on the first free slot of `side`; returns null when the side is full (nothing happens). */
@@ -197,9 +224,7 @@ export function playCard(state: GameState, handIndex: number, slot: number, choi
     if (slot < 0 || slot >= BOARD_SIZE || p.buildings[slot]) throw new Error("Slot unavailable");
     p.hand.splice(handIndex, 1);
     p.energy -= card.cost;
-    const building: Building = { uid: state.nextUid++, def: card, hp: card.hp, maxHp: card.hp };
-    p.buildings[slot] = building;
-    emit(state, { type: "buildingPlaced", side, slot, uid: building.uid });
+    placeBuilding(state, side, card, slot);
     return;
   }
   if (slot < 0 || slot >= BOARD_SIZE || p.board[slot]) throw new Error("Slot unavailable");

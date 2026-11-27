@@ -1,4 +1,4 @@
-import { BOARD_SIZE, canTarget, drawCard, healUnit, hurtBuilding, hurtKing, hurtUnit, kw, summonUnit } from "./engine";
+import { BOARD_SIZE, SUMMON_ORDER, canTarget, drawCard, healUnit, hurtBuilding, hurtKing, hurtUnit, kw, playFree, summonUnit } from "./engine";
 import { onEvent, onSettled } from "./events";
 import { nextRandom } from "./rng";
 import type {
@@ -53,6 +53,8 @@ function matches(e: Effect, c: Ctx, ev: GameEvent): boolean {
       return false;
     case "drawFailed":
       return ev.type === "draw" && ev.failed && ev.side === c.side;
+    case "allyDamaged":
+      return ev.type === "damaged" && ev.side === c.side;
     case "play":
       return (ev.type === "played" || ev.type === "buildingPlaced") && ev.uid === uid;
     case "turnStart":
@@ -102,6 +104,9 @@ function matchesFilter(def: CardDef, types: string[], f?: CardFilter): boolean {
 const unitMatches = (u: Unit, f?: CardFilter) => matchesFilter(u.def, effectiveTypes(u), f);
 const cardMatches = (d: CardDef, f?: CardFilter) => matchesFilter(d, d.types ?? [], f);
 
+/** Does a card in hand / deck / graveyard match a filter? (printed types only) */
+export const cardMatchesFilter = cardMatches;
+
 /** How many of `m` there are, from the point of view of the card carrying the effect. */
 function measure(state: GameState, c: Ctx, m: Measure): number {
   const foe = c.side === 0 ? 1 : 0;
@@ -125,6 +130,8 @@ function measure(state: GameState, c: Ctx, m: Measure): number {
       return me.hand.filter((d) => cardMatches(d, m.filter)).length;
     case "ownDeck":
       return me.deck.filter((d) => cardMatches(d, m.filter)).length;
+    case "selfEquipment":
+      return c.unit?.equipped ?? 0;
     case "ownKingHp":
       return me.kingHp;
     case "enemyKingHp":
@@ -281,6 +288,16 @@ function apply(state: GameState, c: Ctx, action: Action, ev: GameEvent | null): 
     case "win":
       if (state.winner === null) state.winner = c.side;
       return;
+    case "freePlay": {
+      const p = state.players[c.side];
+      p.freePlays.push(action.filter);
+      if (!action.random) return; // the player will choose during the placement phase
+      const options = p.hand.flatMap((d, i) => (d.kind !== "spell" && (!d.kind || d.kind === "creature") && cardMatches(d, action.filter) ? [i] : []));
+      const slot = SUMMON_ORDER.find((s) => !p.board[s]);
+      if (options.length && slot !== undefined) playFree(state, options[Math.floor(nextRandom(state) * options.length)], slot, c.side);
+      else p.freePlays.pop();
+      return;
+    }
     case "aura":
     case "grantType":
       return; // passive only: handled by refreshAuras
@@ -294,6 +311,18 @@ export function castSpell(state: GameState, side: 0 | 1, def: CardDef, chosen: C
     if (state.winner !== null) return;
     apply(state, ctx, action, null);
   }
+  // Equipment stays counted on the card it was used on.
+  if (def.equipment && chosen?.kind === "unit") {
+    const u = state.players[chosen.side].board[chosen.slot];
+    if (u) u.equipped = (u.equipped ?? 0) + 1;
+  }
+}
+
+/** For effects about another card: does the card the event is about match the effect's `subject` filter? */
+function subjectOk(state: GameState, e: Effect, ev: GameEvent): boolean {
+  if (!e.subject) return true;
+  const u = ev.type === "damaged" ? findByUid(state, ev.uid) : ev.type === "died" ? { kind: "unit" as const, unit: ev.unit } : null;
+  return !!u && u.kind === "unit" && unitMatches(u.unit, e.subject);
 }
 
 /** Board effects only work from the board, deck effects only from the deck list. */
@@ -341,7 +370,7 @@ function runEffects(state: GameState, ev: GameEvent): void {
       const p = state.players[c.side];
       const alive = c.deck || (c.unit ? p.board[c.slot] === c.unit : p.buildings[c.slot] === c.building);
       if (!alive && e.on !== "death") continue;
-      if (matches(e, c, ev) && holds(state, c, e.if)) for (const action of e.do) apply(state, c, action, ev);
+      if (matches(e, c, ev) && holds(state, c, e.if) && subjectOk(state, e, ev)) for (const action of e.do) apply(state, c, action, ev);
     }
   }
 }

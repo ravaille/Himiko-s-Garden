@@ -1,8 +1,9 @@
 import { poseAI } from "../core/ai";
 import { autoFill } from "../core/deckrules";
 import { nextRandom } from "../core/rng";
-import { BOARD_SIZE, actionPhase, beginTurn, endTurn, giveOrder, isDeploying, newGame, offer, orderTargets, playCard, previewTargets, spellTargets } from "../core/engine";
+import { BOARD_SIZE, actionPhase, beginTurn, endTurn, giveOrder, isDeploying, newGame, offer, orderTargets, playCard, playFree, previewTargets, spellTargets } from "../core/engine";
 import type { CardDef, Choice, GameState } from "../core/types";
+import { cardMatchesFilter } from "../core/effects";
 import { COLLECTION } from "../data/collection";
 import { cardHtml } from "./card";
 import { currentDeck, deckbuilderClick, deckbuilderFilter, deckbuilderHtml, duelBlockers } from "./deckbuilder";
@@ -14,6 +15,8 @@ let game: GameState;
 let selected: number | null = null;
 /** Slot of the Strategist the player is giving an order to (waiting for a target click), if any. */
 let ordering: number | null = null;
+/** Free-placement mode (granted by an effect): the next card placed costs nothing. */
+let freeMode = false;
 let busy = false;
 let message = "";
 let speed = 1; // 1 = normal, 2 = fast
@@ -76,6 +79,7 @@ function newDuel(): void {
   menuOpen = false;
   selected = null;
   ordering = null;
+  freeMode = false;
   modal = null;
   busy = false;
   beginTurn(game); // the human plays first
@@ -175,7 +179,8 @@ function render(): void {
   const myTurn = game.current === HUMAN && !busy && game.winner === null;
   const hand = me.hand
     .map((c, i) => {
-      const dim = c.cost > me.energy ? " dim" : "";
+      const eligible = freeMode && c.kind !== "spell" && me.freePlays.some((f) => cardMatchesFilter(c, f));
+      const dim = (freeMode ? !eligible : c.cost > me.energy) ? " dim" : "";
       const sel = selected === i ? " selected" : "";
       return `<div class="handcard${dim}${sel}" data-hand="${i}">${cardHtml(c)}</div>`;
     })
@@ -194,6 +199,7 @@ function render(): void {
     ${kingHtml(0)}
     <div class="msg">${message}</div>
     <div class="actions">
+      ${myTurn && me.freePlays.length ? `<button data-act="free" class="${freeMode ? "primary" : ""}">🎁 Pose gratuite ×${me.freePlays.length}${freeMode ? " (active)" : ""}</button>` : ""}
       <button data-act="offer" ${canOffer ? "" : "disabled"}>🔥 Sacrifier la carte (+1⚡)${me.offered ? " — déjà fait ce tour" : ""}</button>
       <button data-act="end" class="primary" ${myTurn ? "" : "disabled"}>Fin du tour ▶</button>
     </div>
@@ -323,6 +329,12 @@ function onClick(e: MouseEvent): void {
     return render();
   }
   if (act === "end") return void endPlayerTurn();
+  if (act === "free") {
+    freeMode = !freeMode;
+    selected = null;
+    message = freeMode ? "🎁 Choisis une carte éligible de ta main, puis une case : elle est posée gratuitement." : "Pose gratuite désactivée.";
+    return render();
+  }
 
   const handEl = t.closest<HTMLElement>("[data-hand]");
   if (handEl) {
@@ -374,11 +386,15 @@ function onClick(e: MouseEvent): void {
   if (slotEl && selected !== null) {
     try {
       const c = me.hand[selected];
-      playCard(game, selected, Number(slotEl.dataset.slot));
+      if (freeMode) {
+        playFree(game, selected, Number(slotEl.dataset.slot));
+        if (!me.freePlays.length) freeMode = false;
+      } else playCard(game, selected, Number(slotEl.dataset.slot));
       message = c.kind === "building" ? `${c.name} est posé : actif tout de suite.` : `${c.name} est posée. ${c.keywords?.haste ? "Elle agit dès ce tour (Célérité)." : "Elle agira au prochain tour."}`;
       selected = null;
     } catch (err) {
-      message = `⚠️ ${(err as Error).message === "Not enough energy" ? "Pas assez d'énergie." : "Case indisponible."}`;
+      const m = (err as Error).message;
+      message = `⚠️ ${m === "Not enough energy" ? "Pas assez d'énergie." : m === "No free placement for this card" ? "Cette carte n'est pas éligible à la pose gratuite." : "Case indisponible."}`;
     }
     render();
   }
@@ -411,6 +427,7 @@ async function endPlayerTurn(): Promise<void> {
   busy = true;
   selected = null;
   ordering = null;
+  freeMode = false;
   message = "Tes cartes passent à l'attaque…";
   render();
   actionPhase(game);
