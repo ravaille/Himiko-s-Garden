@@ -107,7 +107,7 @@ Le **Gardien** dévie même vers un Spectral (l'IA frappe bêtement le Gardien s
 - **Équipement** = sort qui buffe une carte alliée (cumulable, permanent).
 - **Déclencheurs de sort** : « quand tu lances un sort » (ses propres sorts) et « quand un sort est lancé » (tous).
 - **Nouvelles actions** : détruire, invoquer (jeton) sur la première case libre, centre d'abord (échoue sans erreur si le terrain est plein). Nouvelle cible : « la cible » choisie.
-- **Pas encore** : IA qui lance des sorts / pose des bâtiments (l'IA de base les sacrifie).
+- L'IA de base joue aussi sorts et bâtiments (voir « IA » plus bas).
 
 ## Bâtiments et Démolisseur (étape 4b, 2026-11-27)
 - Un bâtiment se pose **sur une de ses propres cases** (jamais chez l'adversaire), **une seule par case**, **même sous une carte**. Il coûte de l'énergie et est **actif tout de suite**.
@@ -142,3 +142,10 @@ Le **Gardien** dévie même vers un Spectral (l'IA frappe bêtement le Gardien s
 - **Deux versions de Général Démon** (deux raretés à prévoir) : *Asmodée, le vide* (**instantané** : à la première pioche ratée, tu gagnes) et *Belphégor, la faim* (**dégâts** : à chaque pioche ratée, l'adversaire perd 10 PV **au lieu de toi**).
 - Si les deux joueurs en ont un, celui dont la pioche se vide **le premier** en profite. Sans Démon, la pioche vide coûte toujours 10 PV.
 - Les passifs peuvent aussi venir du deck.
+
+## IA qui joue sorts et bâtiments (2026-11-27)
+- **Sorts** : l'IA **simule** chaque sort sur chaque cible légale sur une copie de la partie, et le lance si la position s'améliore. Position = stats des cartes + PV des bâtiments/2 + PV du Roi/2 + 6 par carte en main, moins celle de l'adversaire. Un sort qui la fait gagner vaut l'infini ; un sort qui la fait perdre n'est jamais lancé.
+- **Ordre de jeu** : sorts clairement bons (gain ≥ 10) ; puis créature la plus forte abordable ; puis bâtiment (posé de préférence sous une de ses cartes, centre d'abord) ; puis sorts encore utiles (gain ≥ 5).
+- **Offrande** : elle sacrifie la carte la plus faible ; un sort ou bâtiment vaut ≈ 20 points par énergie de coût, comme une créature.
+- **Limites connues** : pas d'ordre donné aux Stratèges (ils jouent en Brave), pas de plan à plusieurs tours, pas de garde d'énergie pour un gros sort.
+- Le deck de l'adversaire dans l'interface est maintenant tiré **une fois** de la collection (40 cartes, sorts et bâtiments compris) au lieu du deck de test à créatures seules.

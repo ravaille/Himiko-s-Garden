@@ -1,8 +1,9 @@
 import { poseAI } from "../core/ai";
-import { buildRandomDeck } from "../core/deck";
+import { autoFill } from "../core/deckrules";
+import { nextRandom } from "../core/rng";
 import { BOARD_SIZE, actionPhase, beginTurn, endTurn, giveOrder, isDeploying, newGame, offer, orderTargets, playCard, previewTargets, spellTargets } from "../core/engine";
 import type { CardDef, Choice, GameState } from "../core/types";
-import { TEST_POOL } from "../data/cards";
+import { COLLECTION } from "../data/collection";
 import { cardHtml } from "./card";
 import { currentDeck, deckbuilderClick, deckbuilderFilter, deckbuilderHtml, duelBlockers } from "./deckbuilder";
 
@@ -20,8 +21,11 @@ let modal: { title: string; cards: CardDef[] } | null = null;
 let screen: "deck" | "duel" = "deck";
 let menuOpen = false;
 
-/** Fixed opponent deck for now (docs/design/10-deckbuilding.md: the enemy keeps a base deck). */
-const ENEMY_DECK = buildRandomDeck(TEST_POOL, { rngState: 20260101 });
+/** Fixed opponent deck for now (docs/design/10-deckbuilding.md: the enemy keeps a base deck): 40 cards drawn once from the collection, spells and buildings included. */
+const ENEMY_DECK = (() => {
+  const h = { rngState: 20260101 };
+  return autoFill([], COLLECTION.filter((c) => !c.rank), () => nextRandom(h));
+})();
 
 const HUMAN = 0;
 
