@@ -12,6 +12,7 @@
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Publier sur GitHub Pages et itch.io | 🟢 initial |
 | [ROADMAP.md](ROADMAP.md) | Jalons et suivi | 🟡 à remplir après les specs |
 | [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) | Décisions prises et questions ouvertes | 🟢 vivant |
+| [BALANCE.md](BALANCE.md) | Résultats de simulation d'équilibrage | 🟢 vivant |
 | [GLOSSARY.md](GLOSSARY.md) | Vocabulaire du jeu (termes FR/EN) | 🟡 à remplir |
 | [decisions/](decisions/) | Décisions structurantes (ADR) | 🟢 |
 

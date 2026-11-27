@@ -1,0 +1,72 @@
+export type Personality =
+  | "none"
+  | "brave"
+  | "coward"
+  | "guardian"
+  | "assassin"
+  | "vengeful"
+  | "berserk"
+  | "faithful"
+  | "strategist"
+  | "defensive"
+  | "passive";
+
+export type Rank = "general" | "colonel" | "lieutenant";
+
+/** Static definition of a card (data, not code). */
+export interface CardDef {
+  id: string;
+  name: string;
+  cost: number;
+  attack: number;
+  hp: number;
+  personality: Personality;
+  /** Optional rank. Any card may have any rank for now (see docs/design/05-hierarchy.md). */
+  rank?: Rank;
+  /** Energy gained when sacrificed. Defaults to 1. */
+  offering?: number;
+}
+
+/** A card on the board. */
+export interface Unit {
+  uid: number;
+  def: CardDef;
+  hp: number;
+  /** Owner's turnsPlayed value when the unit was placed (deployment delay). */
+  deployedOn: number;
+  lastAttackerUid: number | null;
+}
+
+export interface PlayerState {
+  kingHp: number;
+  deck: CardDef[];
+  hand: CardDef[];
+  board: (Unit | null)[];
+  maxEnergy: number;
+  energy: number;
+  turnsPlayed: number;
+  offered: boolean;
+}
+
+export interface GameState {
+  players: [PlayerState, PlayerState];
+  current: 0 | 1;
+  /** Number of player-turns already finished. */
+  turn: number;
+  rngState: number;
+  nextUid: number;
+  winner: 0 | 1 | "draw" | null;
+  stats: { attacks: number };
+}
+
+export type Target =
+  | { kind: "king" }
+  | { kind: "unit"; slot: number; unit: Unit };
+
+export interface Config {
+  kingHp: number;
+  deckSize: number;
+  handSize: number;
+  /** Max rounds (one round = one turn each) before a draw. */
+  maxRounds: number;
+}

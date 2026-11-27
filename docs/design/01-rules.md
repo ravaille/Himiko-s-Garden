@@ -14,23 +14,30 @@
 8. **Duel court :** 2 à 5 minutes.
 9. **Aucune notion de camp** dans les règles : le deck de l'adversaire peut contenir n'importe quoi.
 
+## Ciblage par défaut
+Un attaquant frappe, dans l'ordre : **1) la carte en face de lui** (même case), **2) une carte des 3 cases centrales** (centre d'abord, puis gauche, puis droite), **3) le Roi**.
+Conséquence : les **4 cases extérieures** ne sont pas atteignables par défaut ; on peut y garder des cartes précieuses, au prix des PV du Roi (exposé si le centre et la case en face sont vides).
+Exceptions : l'Assassin et certains effets.
+
+**« Le plus fort » (le plus « beefy »)** : PV, puis Attaque, puis en face, puis centre, puis gauche → droite.
+
 ## Personnalités (comportement autonome)
-Liste de départ validée. Une carte a une personnalité ; l'IA de combat de la carte en découle.
+Les personnalités qui « choisissent » une cible la prennent parmi les cibles atteignables (ci-dessus), sauf mention contraire.
 
 | Personnalité | Comportement |
 |---|---|
-| **Brave** | Attaque l'ennemi le plus fort. |
-| **Lâche** | Est le **dernier survivant de sa propre équipe** (les ennemis le ciblent en dernier). |
-| **Gardien** | Protège l'allié le plus faible. |
-| **Assassin** | Vise directement le général adverse. |
-| **Rancunier** | Frappe celui qui l'a touché en dernier. |
-| **Berzerk** | Frappe un ennemi au hasard. |
-| **Fidèle** | Attaque la même cible qu'un allié. |
-| **Stratège** | Peut recevoir un ordre du joueur (exception à l'autonomie). |
-| **Défensif** | N'attaque que s'il est sûr de tuer sa cible ; sinon reste passif. |
+| **Brave** | Attaque la cible atteignable la plus forte (critère « beefy »). |
+| **Lâche** | **Dernier survivant de son équipe** : ciblé en dernier par les ennemis (sur les bords, le Roi peut être ciblé avant lui). |
+| **Gardien** | Tant qu'il est vivant, il est **prioritaire** sur les alliés des **cases adjacentes** (les attaques visant ces alliés le visent lui). |
+| **Assassin** | Vise directement le Roi adverse. |
+| **Rancunier** | Frappe celui qui l'a touché en dernier ; sinon se comporte comme **Défensif**. |
+| **Berzerk** | Frappe un ennemi au hasard (tirage à graine). |
+| **Fidèle** | Attaque la même cible qu'un allié ; sans allié ayant agi, il agit en **Rancunier** (passif/vengeur, il attend et se défend). |
+| **Stratège** | Reçoit une consigne de cible du joueur en phase de pose, puis l'exécute seul. |
+| **Défensif** | N'attaque que s'il est **sûr de tuer** sa cible ; sinon reste passif. |
 | **Passif** | N'attaque pas (sauf effet d'une autre carte). |
 
-*Pas de « Traître » (ne colle pas) ni de fuite (notion inexistante).*
+Pas de « Traître », pas de fuite, **pas de contre-attaque** pour l'instant.
 
 ## Terrain
 - **Une seule ligne de 7 cases** par joueur. L'ordre d'action est de gauche à droite.
@@ -46,7 +53,8 @@ Voir [05-hierarchy.md](05-hierarchy.md). Le **Roi = le joueur**, avec son total 
 *Valeurs de départ, à tester par simulation.*
 
 ## Deck, main, énergie
-- **Deck : 30 cartes. Main de départ : 7** (on jette des cartes, via l'offrande). **Pioche : 1 par tour.**
+- **Deck : 30 cartes (≈ 23 normales + 7 gradés, gradés compris dans le deck).** **Main de départ : 7** (on jette des cartes, via l'offrande). **Pioche : 1 par tour.**
+- **L'énergie persiste** (mode « terrain ») : chaque offrande augmente l'énergie maximale de façon permanente ; elle se remplit à chaque tour.
 - **Offrande :** sacrifier 1 carte = de l'énergie, **1 offrande par tour** par défaut. Des **cartes exceptionnelles** (ex. Colonel : 2 énergie) donnent plus. Une exception rare peut autoriser une 2e offrande, avec contrainte forte.
 
 ## Déploiement
@@ -56,10 +64,8 @@ Voir [05-hierarchy.md](05-hierarchy.md). Le **Roi = le joueur**, avec son total 
 Au-delà de PV / Attaque / Coût : race, type, élément, pouvoir, effets spéciaux (voir [02-cards.md](02-cards.md)).
 
 ## À définir
-- **Persistance de l'énergie** (question clé, voir OPEN-QUESTIONS)
-- Règle de ciblage par défaut (les cartes peuvent-elles frapper le Roi directement ?)
+- **Structure d'un tour** : alternée (chacun son tour) ou phases communes ? *Provisoire dans le simulateur : alternée, seules les cartes du joueur actif agissent.*
+- Qui commence, la pioche du premier joueur
 - Effets de case (à concevoir)
-- Cas limites des personnalités (voir OPEN-QUESTIONS)
-- Contre-attaque ou non, fin de partie, limite de tours
-- Les gradés sont-ils dans les 30 cartes du deck ?
+- Fin de partie, égalité, limite de tours
 - Exemple de tour commenté

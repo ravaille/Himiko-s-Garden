@@ -22,13 +22,13 @@ Journal vivant du cadrage. ✅ = décidé (et reporté dans design/), ❓ = ouve
 - Le Roi = le joueur, avec ses PV (100-250) ; gradés = cartes normales sur les 7 cases, effets dédiés possibles.
 - Budget stats : ≈ 10 ATK + 10 PV par énergie.
 - 1 offrande par tour (exceptions rares, très contraintes).
+- Énergie persistante (mode terrain). Deck = 23 normales + 7 gradés. Pas de contre-attaque.
+- Ciblage par défaut : en face > centre > Roi ; « le plus fort » = PV > ATK > face > centre > gauche. Cas limites tranchés (voir 01-rules).
 - Personnalités de départ : Brave, Lâche, Gardien, Assassin, Rancunier, Berzerk, Fidèle, Stratège, Défensif, Passif.
 
 ## ❓ Ouvert
-- **Énergie : persiste-t-elle d'un tour à l'autre (comme un terrain) ?**
-- Ciblage par défaut et cas limites des personnalités (liste dans la discussion du 2026-11-27)
-- Les gradés sont-ils dans les 30 cartes du deck ?
-- Contre-attaque ? Fin de partie, limite de tours
+- Structure d'un tour (alternée ou commune ?) : provisoire dans le simulateur
+- Qui commence, compensation du second joueur
 - Effets de case
 - Grades : libres ou catégorie à part (décision après tests)
 - Boosters : types, taux, prix, pitié
