@@ -84,8 +84,16 @@ Exemple de Romain : **+10/+10 pour toute unité posée sur la case centrale, mai
 | **Haste** | Agit dès le tour où elle est posée. | : |
 | **Bushido** | Ne frappe que la carte **en face**, sinon le Roi (les cartes du centre sont ignorées). **Tuer une cible que personne d'autre n'a touchée soigne entièrement la carte.** Les bonus de stats sont dans les chiffres de la carte. | : |
 | **Ghostly** | Invisible aux attaques normales (elles passent à la cible suivante, puis au Roi). Ciblable par les autres Ghostly et par les sorts. | : |
-| **Multihit** | Frappe de nouveau. Même cible ; si elle est morte, la suivante de sa liste ; liste vide → le Roi. | nb de frappes en plus (1 = double frappe) |
+| **Multihit** | Frappe plusieurs fois. Même cible ; si elle est morte, la suivante de sa liste ; liste vide → le Roi. | **N** = nombre total de frappes (2 à 5) : Multihit (2), (3)… pour des spécialistes « j'achève les petits » ou « je profite de + de dégâts » |
 | **Perforant** | Dégâts en trop → carte suivante, puis Roi. | : |
 | **Vol de vie** | Se soigne de la moitié des dégâts réellement infligés (jamais au-delà de ses PV max). | : |
 | **Régénération** | Soigne N PV au début du tour de son propriétaire. | **N** (Régén. 10, Régén. 20…) |
-Le **Gardien** ne dévie pas vers un Spectral que l'attaquant ne peut pas cibler.
+Le **Gardien** dévie même vers un Spectral (l'IA frappe bêtement le Gardien spectral : voulu par Romain, pour le côté drôle).
+
+## Effets codés (étape 3, 2026-11-27)
+- **Déclencheurs** : à la pose, début de tour, quand elle attaque, quand elle est touchée, à sa mort, quand un allié/ennemi meurt, quand le Roi est touché, quand on pioche, quand on sacrifie.
+- **Cibles** : elle-même, l'ennemi en face, tous les ennemis, tous les alliés, alliés adjacents, ennemi au hasard, ennemi le plus fort, Roi adverse, son Roi, l'attaquant.
+- **Actions** : dégâts, soin (le Roi ne dépasse pas ses PV de départ), bonus de stats **permanent**, piocher N (pioche vide = -10 PV), énergie (temporaire, ce tour).
+- Les effets **ne peuvent pas cibler un ennemi Spectral** (seulement les attaques de Spectraux et les sorts).
+- Le texte des cartes est **généré depuis les données** : il ne peut pas contredire l'effet.
+- Pas encore : conditions, scaling, durées limitées, sorts/équipements/bâtiments/jetons (étape 4), filtres par race/type.

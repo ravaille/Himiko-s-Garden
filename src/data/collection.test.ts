@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { DECK_MIN, autoFill, validateDeck } from "../core/deckrules";
 import { buildRandomDeck } from "../core/deck";
+import { playDuel } from "../core/ai";
+import { newGame } from "../core/engine";
 import { COLLECTION } from "./collection";
 
 describe("collection", () => {
@@ -22,5 +24,14 @@ describe("collection", () => {
   it("lets the duel engine run with a 40-card deck", () => {
     const h = { rngState: 7 };
     expect(buildRandomDeck(COLLECTION.filter((c) => !c.rank && c.cost <= 6), h).length).toBeGreaterThan(0);
+  });
+  it("plays 300 full duels with random legal decks without crashing or stalling", () => {
+    let seed = 42;
+    const pick = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 300; i++) {
+      const deck = () => autoFill([], COLLECTION.filter((c) => !c.rank), pick);
+      const r = playDuel(newGame([deck(), deck()], i + 1));
+      expect(["0", "1", "draw"]).toContain(String(r.winner));
+    }
   });
 });

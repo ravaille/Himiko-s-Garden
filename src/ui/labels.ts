@@ -1,4 +1,52 @@
-import type { Keywords, Personality, Race, Rank } from "../core/types";
+import type { Action, CardDef, Effect, Keywords, Personality, Race, Rank, Selector, Trigger } from "../core/types";
+
+const TRIGGER: Record<Trigger, string> = {
+  play: "À la pose",
+  turnStart: "Début de tour",
+  attack: "Quand elle attaque",
+  damaged: "Quand elle est touchée",
+  death: "À sa mort",
+  allyDeath: "Quand un allié meurt",
+  enemyDeath: "Quand un ennemi meurt",
+  kingHit: "Quand ton Roi est touché",
+  draw: "Quand tu pioches",
+  sacrifice: "Quand tu sacrifies une carte",
+};
+
+const SELECTOR: Record<Selector, string> = {
+  self: "elle-même",
+  facing: "l'ennemi en face",
+  enemies: "tous les ennemis",
+  allies: "tous les alliés",
+  adjacent: "les alliés adjacents",
+  randomEnemy: "un ennemi au hasard",
+  strongestEnemy: "l'ennemi le plus fort",
+  enemyKing: "le Roi adverse",
+  ownKing: "ton Roi",
+  source: "l'attaquant",
+};
+
+function actionText(a: Action): string {
+  switch (a.kind) {
+    case "damage":
+      return `${a.amount} dégâts à ${SELECTOR[a.to]}`;
+    case "heal":
+      return `soigne ${SELECTOR[a.to]} de ${a.amount}`;
+    case "buff": {
+      const parts = [a.attack ? `${a.attack > 0 ? "+" : ""}${a.attack}⚔` : "", a.hp ? `${a.hp > 0 ? "+" : ""}${a.hp}♥` : ""].filter(Boolean);
+      return `${SELECTOR[a.to]} : ${parts.join(" ")}`;
+    }
+    case "draw":
+      return `pioche ${a.count}`;
+    case "energy":
+      return `+${a.amount}⚡ ce tour`;
+  }
+}
+
+/** Rules text generated from the effect data, so the card text can never disagree with what it does. */
+export function effectLines(def: CardDef): string[] {
+  return (def.effects ?? []).map((e: Effect) => `${TRIGGER[e.on]} : ${e.do.map(actionText).join(", ")}.`);
+}
 
 /** Display text of the keywords a card has. */
 export function keywordLabels(k: Keywords | undefined): string[] {
@@ -7,7 +55,7 @@ export function keywordLabels(k: Keywords | undefined): string[] {
   if (k.haste) out.push("Célérité");
   if (k.bushido) out.push("Bushido");
   if (k.ghostly) out.push("Spectral");
-  if (k.multihit) out.push(k.multihit === 1 ? "Double frappe" : `Frappe ×${k.multihit + 1}`);
+  if (k.multihit) out.push(`Multihit (${k.multihit})`);
   if (k.piercing) out.push("Perforant");
   if (k.lifesteal) out.push("Vol de vie");
   if (k.regen) out.push(`Régén. (${k.regen})`);
@@ -19,7 +67,7 @@ export const KEYWORD_HELP: Record<string, string> = {
   "Célérité": "Agit dès le tour où elle est posée.",
   Bushido: "Ne frappe que la carte en face (sinon le Roi). Tuer une cible que personne d'autre n'a touchée la soigne entièrement.",
   Spectral: "Ne peut être ciblée que par des cartes spectrales (et par des sorts).",
-  "Double frappe": "Frappe une fois de plus.",
+  Multihit: "Frappe plusieurs fois (le nombre est indiqué). Si la cible meurt, les coups suivants vont à la cible suivante.",
   Perforant: "Les dégâts en trop passent à la carte suivante, puis au Roi.",
   "Vol de vie": "Se soigne de la moitié des dégâts infligés.",
 };

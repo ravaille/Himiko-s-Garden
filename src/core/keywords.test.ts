@@ -49,16 +49,16 @@ describe("Ghostly", () => {
 
 describe("Multihit", () => {
   it("strikes the same target twice", () => {
-    const s = setup({ 3: card("a", 10, 100, { multihit: 1 }) }, { 3: card("t", 1, 100) });
+    const s = setup({ 3: card("a", 10, 100, { multihit: 2 }) }, { 3: card("t", 1, 100) });
     actionPhase(s);
     expect(s.players[1].board[3]!.hp).toBe(80);
   });
   it("sends the second blow to the next target when the first dies, then to the king", () => {
-    const s = setup({ 3: card("a", 10, 100, { multihit: 1 }, "none") }, { 3: card("t1", 1, 5), 2: card("t2", 1, 100) });
+    const s = setup({ 3: card("a", 10, 100, { multihit: 2 }, "none") }, { 3: card("t1", 1, 5), 2: card("t2", 1, 100) });
     actionPhase(s);
     expect(s.players[1].board[3]).toBeNull();
     expect(s.players[1].board[2]!.hp).toBe(90);
-    const s2 = setup({ 3: card("a", 10, 100, { multihit: 1 }) }, { 3: card("t1", 1, 5) });
+    const s2 = setup({ 3: card("a", 10, 100, { multihit: 2 }) }, { 3: card("t1", 1, 5) });
     actionPhase(s2);
     expect(s2.players[1].kingHp).toBe(140);
   });

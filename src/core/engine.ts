@@ -1,3 +1,4 @@
+import "./effects"; // registers the card-effects handler on the event bus
 import { emit } from "./events";
 import { nextRandom, shuffle } from "./rng";
 import type { CardDef, Config, GameState, Keywords, PlayerState, Target, Unit } from "./types";
@@ -18,6 +19,7 @@ function newPlayer(deck: CardDef[], state: { rngState: number }, cfg: Config): P
   const shuffled = shuffle(deck, state);
   return {
     kingHp: cfg.kingHp,
+    kingMax: cfg.kingHp,
     deck: shuffled.slice(cfg.handSize),
     hand: shuffled.slice(0, cfg.handSize),
     graveyard: [],
@@ -65,19 +67,7 @@ export function beginTurn(state: GameState): void {
   p.offered = false;
   emit(state, { type: "turnStart", side: state.current });
   for (const u of p.board) if (u && kw(u).regen) healUnit(state, state.current, u, kw(u).regen!);
-  if (state.turn > 0) {
-    const card = p.deck.shift();
-    if (card) {
-      p.hand.push(card);
-      emit(state, { type: "draw", side: state.current, failed: false });
-    } else {
-      // Empty deck: failing to draw costs the king 10 HP (no stalemates).
-      p.fatigued = true;
-      p.kingHp -= FATIGUE_DAMAGE;
-      if (p.kingHp <= 0) state.winner = state.current === 0 ? 1 : 0;
-      emit(state, { type: "draw", side: state.current, failed: true });
-    }
-  }
+  if (state.turn > 0) drawCard(state, state.current);
 }
 
 export function endTurn(state: GameState, cfg: Config = DEFAULT_CONFIG): void {
@@ -130,7 +120,7 @@ export const kw = (u: Unit): Keywords => u.keywords ?? u.def.keywords ?? {};
 export const isDeploying = (p: PlayerState, u: Unit): boolean => u.deployedOn >= p.turnsPlayed && !kw(u).haste;
 
 /** Ghostly units can only be targeted by other ghostly units. */
-const canTarget = (attacker: Unit, victim: Unit): boolean => !kw(victim).ghostly || !!kw(attacker).ghostly;
+export const canTarget = (attacker: Unit, victim: Unit): boolean => !kw(victim).ghostly || !!kw(attacker).ghostly;
 
 /** Heals a unit up to its max HP; returns the HP actually recovered. */
 export function healUnit(state: GameState, side: 0 | 1, unit: Unit, amount: number): number {
@@ -243,12 +233,12 @@ function chooseTarget(
   }
 }
 
-/** Guardian: adjacent allies of a guardian are shielded by it (unless it cannot be targeted by the attacker). */
-function redirectToGuardian(enemy: PlayerState, t: Target, attacker: Unit): Target {
+/** Guardian: adjacent allies of a guardian are shielded by it, even a ghostly one (attackers blindly hit it). */
+function redirectToGuardian(enemy: PlayerState, t: Target, _attacker: Unit): Target {
   if (t.kind !== "unit" || t.unit.def.personality === "guardian") return t;
   for (const s of [t.slot - 1, t.slot + 1]) {
     const u = enemy.board[s];
-    if (u && u.def.personality === "guardian" && canTarget(attacker, u)) return { kind: "unit", slot: s, unit: u };
+    if (u && u.def.personality === "guardian") return { kind: "unit", slot: s, unit: u };
   }
   return t;
 }
@@ -261,42 +251,77 @@ function nextTarget(state: GameState, pi: 0 | 1, slot: number, attacker: Unit): 
   return chooseTarget(state, pi, slot, attacker, []) ?? reachableCards(slot, enemy, attacker)[0] ?? KING;
 }
 
+/** Damages a card. Handles the `damaged`/`died` events and records who touched it. */
+export function hurtUnit(
+  state: GameState,
+  side: 0 | 1,
+  unit: Unit,
+  amount: number,
+  source: Unit | null,
+): { before: number; killed: boolean } {
+  const p = state.players[side];
+  const slot = p.board.indexOf(unit);
+  if (slot < 0) return { before: 0, killed: false };
+  const before = unit.hp;
+  unit.hp -= amount;
+  if (source) unit.lastAttackerUid = source.uid;
+  (unit.touchedBy ??= []).push(source?.uid ?? -1);
+  emit(state, { type: "damaged", side, slot, uid: unit.uid, amount, sourceUid: source?.uid ?? null });
+  const killed = unit.hp <= 0;
+  if (killed && p.board[slot] === unit) {
+    p.board[slot] = null;
+    p.graveyard.push(unit.def);
+    emit(state, { type: "died", side, slot, uid: unit.uid, card: unit.def, unit });
+  }
+  return { before, killed };
+}
+
+/** Damages a king; the other side wins when it reaches 0. */
+export function hurtKing(state: GameState, side: 0 | 1, amount: number): void {
+  const p = state.players[side];
+  p.kingHp -= amount;
+  emit(state, { type: "kingHit", side, amount });
+  if (p.kingHp <= 0 && state.winner === null) state.winner = side === 0 ? 1 : 0;
+}
+
+/** Draws a card for `side`. An empty deck costs the king 10 HP (no stalemates). Returns false on a failed draw. */
+export function drawCard(state: GameState, side: 0 | 1): boolean {
+  const p = state.players[side];
+  const card = p.deck.shift();
+  if (card) {
+    p.hand.push(card);
+    emit(state, { type: "draw", side, failed: false });
+    return true;
+  }
+  p.fatigued = true;
+  p.kingHp -= FATIGUE_DAMAGE;
+  if (p.kingHp <= 0 && state.winner === null) state.winner = side === 0 ? 1 : 0;
+  emit(state, { type: "draw", side, failed: true });
+  return false;
+}
+
 interface Blow {
   killed: boolean;
   /** Damage beyond the target's remaining HP. */
   excess: number;
 }
 
-/** One instance of damage from `attacker` to `t`; handles death, Lifesteal and Bushido. */
+/** One instance of damage from `attacker` to `t`; handles Lifesteal and Bushido on top of the damage. */
 function deal(state: GameState, pi: 0 | 1, from: number, attacker: Unit, t: Target, amount: number): Blow {
   const foe = pi === 0 ? 1 : 0;
-  const enemy = state.players[foe];
   if (t.kind === "king") {
-    enemy.kingHp -= amount;
     state.events.push({ side: pi, from, to: "king", damage: amount, killed: false });
-    emit(state, { type: "kingHit", side: foe, amount });
-    if (enemy.kingHp <= 0 && state.winner === null) state.winner = pi;
+    hurtKing(state, foe, amount);
     if (kw(attacker).lifesteal) healUnit(state, pi, attacker, Math.floor(amount / 2));
     return { killed: false, excess: 0 };
   }
   const victim = t.unit;
-  const before = victim.hp;
-  victim.hp -= amount;
-  victim.lastAttackerUid = attacker.uid;
-  (victim.touchedBy ??= []).push(attacker.uid);
-  emit(state, { type: "damaged", side: foe, slot: t.slot, uid: victim.uid, amount, sourceUid: attacker.uid });
-  const dealt = Math.min(amount, before);
-  const killed = victim.hp <= 0;
+  const { before, killed } = hurtUnit(state, foe, victim, amount, attacker);
   state.events.push({ side: pi, from, to: t.slot, damage: amount, killed });
-  if (kw(attacker).lifesteal) healUnit(state, pi, attacker, Math.floor(dealt / 2));
-  if (killed && enemy.board[t.slot] === victim) {
-    enemy.board[t.slot] = null;
-    enemy.graveyard.push(victim.def);
-    emit(state, { type: "died", side: foe, slot: t.slot, uid: victim.uid, card: victim.def });
-    // Bushido: a clean kill (nobody else touched the target) heals the attacker fully.
-    if (kw(attacker).bushido && victim.touchedBy!.every((id) => id === attacker.uid)) {
-      healUnit(state, pi, attacker, attacker.maxHp);
-    }
+  if (kw(attacker).lifesteal) healUnit(state, pi, attacker, Math.floor(Math.min(amount, before) / 2));
+  // Bushido: a clean kill (nobody else touched the target) heals the attacker fully.
+  if (killed && kw(attacker).bushido && victim.touchedBy!.every((id) => id === attacker.uid)) {
+    healUnit(state, pi, attacker, attacker.maxHp);
   }
   return { killed, excess: killed ? amount - before : 0 };
 }
@@ -321,7 +346,7 @@ function attackWith(state: GameState, pi: 0 | 1, slot: number, attacker: Unit, c
   const first = redirectToGuardian(enemy, chosen, attacker);
   acted.push(first);
   let target = first;
-  const strikes = 1 + (kw(attacker).multihit ?? 0);
+  const strikes = Math.max(1, kw(attacker).multihit ?? 1);
   for (let i = 0; i < strikes; i++) {
     if (state.winner !== null) return;
     if (i > 0 && !isAlive(enemy, target)) target = nextTarget(state, pi, slot, attacker);

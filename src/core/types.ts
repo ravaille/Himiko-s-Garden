@@ -24,7 +24,7 @@ export interface Keywords {
   bushido?: boolean;
   /** Only targetable by other ghostly cards (and by spells). */
   ghostly?: boolean;
-  /** Extra hits per attack: multihit 1 = strikes twice. */
+  /** Strikes per attack (2 to 5): multihit 3 = three blows, the next ones going to the next targets if the first dies. */
   multihit?: number;
   /** Excess damage carries over to the next target, then the king. */
   piercing?: boolean;
@@ -33,6 +33,47 @@ export interface Keywords {
   /** Heals N HP at the start of its owner's turn. */
   regen?: number;
 }
+
+/** When an effect fires (docs/design/07-keywords-and-effects.md, "Déclencheurs"). */
+export type Trigger =
+  | "play" // when placed
+  | "turnStart" // start of its owner's turn
+  | "attack" // when it attacks
+  | "damaged" // when it is hit
+  | "death" // when it dies
+  | "allyDeath" // when another card of its side dies
+  | "enemyDeath" // when a card of the other side dies
+  | "kingHit" // when its owner's king is hit
+  | "draw" // when its owner draws a card
+  | "sacrifice"; // when its owner sacrifices a card
+
+/** Who an action applies to, relative to the card carrying the effect. */
+export type Selector =
+  | "self"
+  | "facing" // the enemy card in front
+  | "enemies" // all enemy cards
+  | "allies" // all other friendly cards
+  | "adjacent" // friendly cards next to it
+  | "randomEnemy"
+  | "strongestEnemy"
+  | "enemyKing"
+  | "ownKing"
+  | "source"; // the card that just damaged it
+
+export type Action =
+  | { kind: "damage"; to: Selector; amount: number }
+  | { kind: "heal"; to: Selector; amount: number }
+  /** Permanent stat change (docs: stat changes are permanent by default). */
+  | { kind: "buff"; to: Selector; attack?: number; hp?: number }
+  | { kind: "draw"; count: number }
+  /** Temporary energy for this turn. */
+  | { kind: "energy"; amount: number };
+
+export interface Effect {
+  on: Trigger;
+  do: Action[];
+}
+
 
 /** Deck constraint carried by a card (typically a General): every other card must match. */
 export interface DeckRule {
@@ -56,6 +97,8 @@ export interface CardDef {
   /** Archetype types, shared across races (e.g. "samurai", "mage"). */
   types?: string[];
   keywords?: Keywords;
+  /** Triggered effects (see core/effects.ts). */
+  effects?: Effect[];
   /** Deck-building constraint (see docs/design/10-deckbuilding.md). */
   deckRule?: DeckRule;
   /** Energy gained when sacrificed. Defaults to 1. */
@@ -83,6 +126,8 @@ export interface Unit {
 
 export interface PlayerState {
   kingHp: number;
+  /** Starting king HP: healing cannot exceed it. */
+  kingMax: number;
   deck: CardDef[];
   hand: CardDef[];
   /** Dead and sacrificed cards. */
@@ -115,7 +160,7 @@ export type GameEvent =
   | { type: "attack"; side: 0 | 1; slot: number; uid: number; target: number | "king" }
   /** A card of `side` took damage. */
   | { type: "damaged"; side: 0 | 1; slot: number; uid: number; amount: number; sourceUid: number | null }
-  | { type: "died"; side: 0 | 1; slot: number; uid: number; card: CardDef }
+  | { type: "died"; side: 0 | 1; slot: number; uid: number; card: CardDef; unit: Unit }
   /** A card of `side` recovered HP. */
   | { type: "healed"; side: 0 | 1; slot: number; uid: number; amount: number }
   /** The king of `side` took damage. */

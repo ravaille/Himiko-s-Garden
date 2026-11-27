@@ -1,10 +1,10 @@
-import type { CardDef, Keywords, Personality, Race, Rank } from "../core/types";
+import type { CardDef, Effect, Keywords, Personality, Race, Rank } from "../core/types";
 import { TEST_POOL } from "./cards";
 
 /**
  * Playable collection for deck-building tests (debug mode: everything is unlocked, docs/design/10-deckbuilding.md).
  * Built on the placeholder TEST_POOL (stats only) plus race/type tags, officers and Oni cards.
- * Effects are NOT implemented yet: texts that mention them are marked "(effet à venir)".
+ * Generals have no effect yet (texts marked "(effet à venir)"); the `fx-` cards use the effects engine.
  */
 
 const TAGS: Record<string, { race: Race; types?: string[]; rank?: Rank }> = {
@@ -39,7 +39,7 @@ const KEYWORDS: Record<string, Keywords> = {
   "c1-scout": { haste: true },
   "c2-kunoichi": { haste: true },
   "c2-samurai": { bushido: true },
-  "c3-oni": { multihit: 1 },
+  "c3-oni": { multihit: 2 },
   "c4-ronin": { piercing: true },
   "c6-demon": { lifesteal: true },
   "c6-tengu": { regen: 10 },
@@ -105,10 +105,40 @@ const SPIRITS: CardDef[] = [
   { id: "yurei-wisp", name: "Feu follet", cost: 1, attack: 8, hp: 6, personality: "brave", race: "yurei", types: ["spectral"], keywords: { ghostly: true } },
   { id: "yurei-lantern", name: "Lanterne hantée", cost: 2, attack: 14, hp: 10, personality: "passive", race: "yurei", types: ["spectral"], keywords: { ghostly: true, regen: 10 } },
   { id: "yurei-widow", name: "Veuve spectrale", cost: 3, attack: 24, hp: 16, personality: "assassin", race: "yurei", types: ["spectral"], keywords: { ghostly: true } },
-  { id: "beast-fox", name: "Renard à deux queues", cost: 2, attack: 24, hp: 16, personality: "brave", race: "beast", keywords: { multihit: 1 } },
+  { id: "beast-fox", name: "Renard à deux queues", cost: 2, attack: 24, hp: 16, personality: "brave", race: "beast", keywords: { multihit: 2 } },
 ];
 
-export const COLLECTION: CardDef[] = [...GENERALS, ...tagged(), ...ONI_CARDS, ...SPIRITS];
+/** Cards using the effects engine (stats are below the 20/energy budget: effects cost points). */
+function fx(
+  id: string,
+  name: string,
+  cost: number,
+  attack: number,
+  hp: number,
+  personality: Personality,
+  race: Race,
+  effects: Effect[],
+  extra: Partial<CardDef> = {},
+): CardDef {
+  return { id: `fx-${id}`, name, cost, attack, hp, personality, race, effects, ...extra };
+}
+
+const EFFECT_CARDS: CardDef[] = [
+  fx("imp", "Imp", 1, 8, 8, "brave", "demon", [{ on: "death", do: [{ kind: "draw", count: 1 }] }], { types: ["demon"] }),
+  fx("familiar", "Familier", 1, 6, 10, "passive", "demon", [{ on: "sacrifice", do: [{ kind: "buff", to: "self", attack: 10 }] }], { types: ["demon"] }),
+  fx("scribe", "Scribe", 2, 10, 16, "passive", "human", [{ on: "play", do: [{ kind: "draw", count: 1 }] }], { types: ["student"] }),
+  fx("priestess", "Prêtresse", 2, 12, 18, "brave", "human", [{ on: "play", do: [{ kind: "heal", to: "ownKing", amount: 20 }] }]),
+  fx("monk", "Moine soigneur", 2, 8, 22, "passive", "human", [{ on: "turnStart", do: [{ kind: "heal", to: "allies", amount: 5 }] }]),
+  fx("sprout", "Jeune pousse", 2, 12, 14, "brave", "beast", [{ on: "turnStart", do: [{ kind: "buff", to: "self", attack: 5, hp: 5 }] }]),
+  fx("kamikaze", "Oni kamikaze", 2, 26, 8, "berserk", "oni", [{ on: "death", do: [{ kind: "damage", to: "enemies", amount: 10 }] }], { types: ["samurai"] }),
+  fx("bomber", "Artificier", 3, 20, 24, "brave", "human", [{ on: "play", do: [{ kind: "damage", to: "facing", amount: 20 }] }], { types: ["ninja"] }),
+  fx("watcher", "Veilleur", 3, 18, 28, "defensive", "human", [{ on: "allyDeath", do: [{ kind: "buff", to: "self", attack: 10 }] }], { types: ["samurai"] }),
+  fx("thorn", "Oni épineux", 4, 18, 52, "guardian", "oni", [{ on: "damaged", do: [{ kind: "damage", to: "source", amount: 5 }] }], { types: ["guard"] }),
+  fx("bloodblade", "Sabre vampirique", 4, 34, 36, "brave", "demon", [{ on: "attack", do: [{ kind: "heal", to: "ownKing", amount: 5 }] }], { types: ["vampire"] }),
+  fx("warlord", "Seigneur démon", 6, 64, 46, "berserk", "demon", [{ on: "kingHit", do: [{ kind: "buff", to: "self", attack: 10 }] }], { types: ["demon"] }),
+];
+
+export const COLLECTION: CardDef[] = [...GENERALS, ...tagged(), ...ONI_CARDS, ...SPIRITS, ...EFFECT_CARDS];
 
 export function cardById(id: string): CardDef | undefined {
   return COLLECTION.find((c) => c.id === id);
