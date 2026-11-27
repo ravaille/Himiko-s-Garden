@@ -10,6 +10,10 @@
 | [design/05-hierarchy.md](design/05-hierarchy.md) | Roi, Général, Colonels, Lieutenants | 🟡 principes validés |
 | [design/06-card-layout.md](design/06-card-layout.md) | Anatomie d'une carte générique | 🟢 v0 |
 | [design/07-keywords-and-effects.md](design/07-keywords-and-effects.md) | Mots-clés et effets de cartes | 🟡 liste de départ |
+| [design/08-effects-format.md](design/08-effects-format.md) | Format des effets (brouillon) | 🟡 brouillon |
+| [design/09-archetypes.md](design/09-archetypes.md) | Archétypes et types | 🟡 brouillon |
+| [design/10-deckbuilding.md](design/10-deckbuilding.md) | Deck-building | 🟢 spec v0 |
+| [design/11-first-set.md](design/11-first-set.md) | Premier set de test | 🟡 brouillon |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Structure du code, choix techniques | 🟢 initial |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Publier sur GitHub Pages et itch.io | 🟢 initial |
 | [ROADMAP.md](ROADMAP.md) | Jalons et suivi | 🟡 à remplir après les specs |

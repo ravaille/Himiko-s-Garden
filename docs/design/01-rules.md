@@ -36,6 +36,7 @@ Les personnalités qui « choisissent » une cible la prennent parmi les cibles 
 | **Stratège** | Reçoit une consigne de cible du joueur en phase de pose, puis l'exécute seul. |
 | **Défensif** | N'attaque que s'il est **sûr de tuer** sa cible ; sinon reste passif. |
 | **Passif** | N'attaque pas (sauf effet d'une autre carte). |
+| **Démolisseur** *(à valider)* | Priorise les **bâtiments ennemis posés sur une case vide** (sans unité). Les bâtiments ne sont jamais ciblés par l'automatique, sauf par lui et par le Berzerk (hasard sur tout). |
 
 Pas de « Traître », pas de fuite, **pas de contre-attaque** pour l'instant.
 

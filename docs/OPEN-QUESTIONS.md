@@ -36,7 +36,7 @@ Journal vivant du cadrage. ✅ = décidé (et reporté dans design/), ❓ = ouve
 - **Partie « hors duel »** (monde réel moderne, histoire, rivaux) : à concevoir pour estimer la campagne
 - Règles des **sorts** et **bâtiments** (quand/où/coût)
 - Ghostly : qui peut la cibler ? Plafond de mots-clés par carte ?
-- Listes complètes de races et de types/archétypes
+- Liste complète des types/archétypes (races v1 fixées dans 02-cards ; reste à créer les archétypes Humain et Demon)
 - Format de données des effets (langage commun pour créer beaucoup de cartes)
 - Grades : libres ou catégorie à part (décision après tests)
 - Boosters : types, taux, prix, pitié

@@ -16,8 +16,9 @@
 - **Bâtiments** (pièges ?) : effet persistant ou déclenché. *(règles à définir)*
 
 ## Attributs annexes (par carte, optionnels)
-- **Race** (liste de départ, non exhaustive) : Humain · **Obake** (transformeur) · **Tsukumogami** (objet du quotidien qui prend vie) · **Yokai** (humanoïdes dont les oni) · **Yurei** (ombres) · **Robots**.
+- **Race** (liste v1, 2026-11-27) : **Humain · Henge · Yurei · Tsukumogami · Oni · Beast · Demon · Robot**. *(Remplace la liste de départ : Obake/Yokai ne sont plus listés ; Henge couvre les transformeurs.)*
 - **Type / archétype** (remplace « élément ») : famille thématique pour bâtir des decks typés avec des **synergies** (bonus spéciaux aux types). Exemples : [Guerrier], [Chats], [Z-bots], [Viking], [Bêtes]. *Listes à compléter ensemble.* Pour l'instant : **uniquement des synergies**, pas de forces/faiblesses.
+  - **Types de départ** : Samourai · Ninja · Daimyo · Elemental · … (liste ouverte). Les types sont **transversaux aux races** et liés aux **archétypes de deck** : prévoir **≈ 3 à 5 archétypes pour Humain et Demon**, **≈ 2 pour les autres races** (plus si idées). On ajoute un type quand une synergie l'exige. Exemple : le type **Élève** (toutes races, stats moyennes, coût 3, bonus quand ils sont ensemble ; synergie du Général Professeur).
 - **Mots-clés et effets** : voir [07-keywords-and-effects.md](07-keywords-and-effects.md).
 - **Texte de carte** : les cartes doivent avoir de la place pour décrire leur effet (zone de texte prévue dans le layout).
 
