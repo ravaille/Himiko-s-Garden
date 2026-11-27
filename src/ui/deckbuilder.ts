@@ -32,6 +32,12 @@ function saveDeck(): void {
   }
 }
 
+/** Replaces the deck (used to hand the player a ready-made deck at the very start). */
+export function setDeck(cards: CardDef[]): void {
+  deck = cards.slice();
+  saveDeck();
+}
+
 /** The current deck (a copy). */
 export function currentDeck(): CardDef[] {
   return deck.slice();
@@ -127,7 +133,7 @@ function deckPanelHtml(): string {
 }
 
 export function deckbuilderHtml(): string {
-  return `<header><h1>Himiko's Garden <small>deck-building</small></h1><span class="muted">Échap : menu</span></header>
+  return `<header><h1>Himiko's Garden <small>deck-building</small></h1><span><button data-act="menu-world">🗺️ Retour au monde</button> <span class="muted">Échap : menu</span></span></header>
     <div class="deckbuilder"><section class="collection">${collectionHtml()}</section><aside class="deckpanel">${deckPanelHtml()}</aside></div>`;
 }
 

@@ -165,3 +165,22 @@ button.primary { background: var(--accent); border-color: var(--accent); font-we
 .slot.ordered::before, .king.ordered::before { content: "🎯"; position: absolute; top: 2px; left: 3px; font-size: 14px; z-index: 4; pointer-events: none; }
 .slot.ordered { box-shadow: inset 0 0 0 2px #ff5a5a; }
 .king.ordered { box-shadow: inset 0 0 0 2px #ff5a5a; }
+
+/* ---- overworld ---- */
+.world { position: relative; max-width: 960px; margin: 0 auto; }
+.world canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; border: 3px solid #3a3358; border-radius: 10px; background: #0d0b14; }
+.world .maptitle { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: #14121ccc; border: 1px solid #5a5288; border-radius: 8px; padding: 4px 14px; font-size: .9rem; opacity: 0; transition: opacity .4s; pointer-events: none; }
+.world .maptitle.show { opacity: 1; }
+.world .dlg { position: absolute; left: 3%; right: 3%; bottom: 14px; background: #14121cf2; border: 2px solid #8a78d6; border-radius: 12px; padding: 12px 16px 14px; cursor: pointer; font-size: 1.05rem; line-height: 1.4; }
+.world .dlg.hidden { display: none; }
+.world .dlg b { color: #ffd24a; display: block; margin-bottom: 2px; }
+.world .dlg p { margin: 0; }
+.world .dlg i { position: absolute; right: 14px; bottom: 6px; font-style: normal; color: #8a78d6; animation: pulse 1s infinite alternate; }
+.world .hint { text-align: center; font-size: .8rem; margin: 8px 0 0; }
+.world .pad { display: none; justify-content: space-between; align-items: center; padding: 10px 6px 0; }
+.world .dpad { display: grid; grid-template-columns: repeat(3, 52px); grid-template-areas: ". up ." "left . right" ". down ."; gap: 4px; }
+.world .dpad button { width: 52px; height: 52px; padding: 0; font-size: 1.2rem; touch-action: none; }
+.world .dpad [data-dir=up] { grid-area: up; } .world .dpad [data-dir=left] { grid-area: left; }
+.world .dpad [data-dir=right] { grid-area: right; } .world .dpad [data-dir=down] { grid-area: down; }
+.world .abtn { width: 72px; height: 72px; border-radius: 50%; font-size: 1.5rem; font-weight: 700; background: var(--accent); border-color: var(--accent); }
+@media (pointer: coarse) { .world .pad { display: flex; } }

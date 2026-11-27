@@ -1,12 +1,11 @@
 import { poseAI } from "../core/ai";
-import { autoFill } from "../core/deckrules";
-import { nextRandom } from "../core/rng";
 import { BOARD_SIZE, actionPhase, beginTurn, endTurn, giveOrder, isDeploying, newGame, offer, orderTargets, playCard, playFree, previewTargets, spellTargets } from "../core/engine";
 import type { CardDef, Choice, GameState } from "../core/types";
 import { cardMatchesFilter } from "../core/effects";
-import { COLLECTION } from "../data/collection";
+import { MAPS, seededDeck } from "../data/world";
 import { cardHtml } from "./card";
-import { currentDeck, deckbuilderClick, deckbuilderFilter, deckbuilderHtml, duelBlockers } from "./deckbuilder";
+import { currentDeck, deckbuilderClick, deckbuilderFilter, deckbuilderHtml, duelBlockers, setDeck } from "./deckbuilder";
+import { markDefeated, mountWorld, unmountWorld } from "./overworld";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -21,14 +20,15 @@ let busy = false;
 let message = "";
 let speed = 1; // 1 = normal, 2 = fast
 let modal: { title: string; cards: CardDef[] } | null = null;
-let screen: "deck" | "duel" = "deck";
+let screen: "world" | "deck" | "duel" = "world";
 let menuOpen = false;
+/** Id of the trainer being fought (null for a practice duel). */
+let currentTrainer: string | null = null;
+let resultHandled = false;
+let worldOn = false;
 
-/** Fixed opponent deck for now (docs/design/10-deckbuilding.md: the enemy keeps a base deck): 40 cards drawn once from the collection, spells and buildings included. */
-const ENEMY_DECK = (() => {
-  const h = { rngState: 20260101 };
-  return autoFill([], COLLECTION.filter((c) => !c.rank), () => nextRandom(h));
-})();
+/** Opponent deck of the practice duel (and the demo deck handed to a new player): 40 cards drawn once from the collection. */
+const ENEMY_DECK = seededDeck("default");
 
 const HUMAN = 0;
 
@@ -45,7 +45,9 @@ export function startGame(el: HTMLElement): void {
       render();
     }
   });
-  render(); // opens on the deck-building screen
+  // Demo: until the starter-archetype choice exists, a new player gets the same random deck as the AI.
+  if (currentDeck().length === 0) setDeck(seededDeck("default"));
+  render(); // opens on the world
 }
 
 function onFilter(e: Event): void {
@@ -67,14 +69,18 @@ function menuHtml(): string {
   return `<div class="overlay" data-act="menu-bg"><div class="menu">
     <h2>Menu</h2>
     <button data-act="menu-resume">Reprendre</button>
+    ${screen === "world" ? "" : '<button data-act="menu-world">🗺️ Retour au monde</button>'}
     <button data-act="menu-deck">🃏 Deck-building</button>
-    <button data-act="menu-duel" ${blockers.length ? "disabled" : ""} title="${blockers.join(" ")}">⚔ Nouveau duel</button>
+    <button data-act="menu-duel" ${blockers.length ? "disabled" : ""} title="${blockers.join(" ")}">⚔ Duel d'essai</button>
   </div></div>`;
 }
 
-function newDuel(): void {
+/** Starts a duel with the player's deck against `enemyDeck`; `trainer` is the character fought (null = practice). */
+function newDuel(enemyDeck: CardDef[] = ENEMY_DECK, trainer: string | null = null): void {
   const h = { rngState: (Date.now() & 0xffffffff) >>> 0 };
-  game = newGame([currentDeck(), ENEMY_DECK.slice()], h.rngState + 1);
+  game = newGame([currentDeck(), enemyDeck.slice()], h.rngState + 1);
+  currentTrainer = trainer;
+  resultHandled = false;
   screen = "duel";
   menuOpen = false;
   selected = null;
@@ -170,7 +176,36 @@ function kingHtml(side: 0 | 1): string {
   </div>`;
 }
 
+/** The world keeps its canvas between renders: only the menu layer on top is redrawn. */
+function renderWorld(): void {
+  if (!worldOn || !root.querySelector("#stage")) {
+    root.innerHTML = '<div id="stage"></div><div id="layer"></div>';
+    mountWorld(root.querySelector<HTMLElement>("#stage")!, {
+      duel(npcId) {
+        const blockers = duelBlockers();
+        if (blockers.length) return `Ton deck n'est pas valide (${blockers[0]}) Ouvre le PC ou le menu (Échap) pour le corriger.`;
+        const npc = Object.values(MAPS).flatMap((m) => m.npcs).find((n) => n.id === npcId);
+        message = `⚔ Duel contre ${npc?.name ?? "l'adversaire"} !`;
+        newDuel(seededDeck(npcId), npcId);
+        return null;
+      },
+      openDeck() {
+        screen = "deck";
+        render();
+      },
+      paused: () => menuOpen,
+    });
+    worldOn = true;
+  }
+  root.querySelector("#layer")!.innerHTML = menuHtml();
+}
+
 function render(): void {
+  if (screen !== "world" && worldOn) {
+    unmountWorld();
+    worldOn = false;
+  }
+  if (screen === "world") return renderWorld();
   if (screen === "deck") {
     root.innerHTML = deckbuilderHtml() + menuHtml();
     return;
@@ -187,6 +222,10 @@ function render(): void {
     .join("");
   const canOffer = myTurn && selected !== null && !me.offered;
   const over = game.winner !== null;
+  if (over && !resultHandled) {
+    resultHandled = true;
+    if (game.winner === HUMAN && currentTrainer) markDefeated(currentTrainer);
+  }
   const result = game.winner === HUMAN ? "🏆 Victoire !" : game.winner === "draw" ? "🤝 Égalité" : "💀 Défaite";
 
   root.innerHTML = `
@@ -212,7 +251,7 @@ function render(): void {
         <div class="pilecard back">📚</div><span>Pioche · ${me.deck.length}</span></div>
     </div>
     ${modal ? modalHtml() : ""}
-    ${over ? `<div class="overlay"><div><h2>${result}</h2><button data-act="again" class="primary">Rejouer</button> <button data-act="menu-deck">🃏 Deck-building</button></div></div>` : ""}
+    ${over ? `<div class="overlay"><div><h2>${result}</h2>${currentTrainer ? `<p class="muted">${game.winner === HUMAN ? "Tu as battu ce dresseur." : "Tu peux le défier de nouveau."}</p>` : ""}<button data-act="menu-world" class="primary">🗺️ Retour au monde</button> ${currentTrainer ? "" : '<button data-act="again">Rejouer</button> '}<button data-act="menu-deck">🃏 Deck-building</button></div></div>` : ""}
     ${menuHtml()}`;
 }
 
@@ -294,7 +333,14 @@ function onClick(e: MouseEvent): void {
     modal = null;
     return render();
   }
+  if (act === "menu-world") {
+    screen = "world";
+    menuOpen = false;
+    modal = null;
+    return render();
+  }
   if (act === "menu-duel") return duelBlockers().length ? undefined : newDuel();
+  if (screen === "world") return;
   if (menuOpen) return;
   if (screen === "deck") {
     const r = deckbuilderClick(t);
