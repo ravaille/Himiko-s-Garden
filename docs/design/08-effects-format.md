@@ -48,6 +48,6 @@ Résolution en chaîne sans limite de conception ; coupure technique à ≈ 200 
 1. ✅ Stats en direct sur les cartes (`Unit.attack/maxHp/hp`) + bus d'événements (`core/events.ts` : turnStart, draw, played, sacrificed, attack, damaged, died, kingHit).
 2. ✅ Mots-clés : Haste, Bushido, Ghostly, Multihit, Perforant, Vol de vie, Régénération (voir 07).
 3. ✅ (petit lot) Déclencheurs, actions et sélecteurs de cible (voir 07). Reste : conditions, scaling, durées.
-4. Sorts, équipements, bâtiments, jetons.
+4. ✅ Sorts, équipements, jetons (4a). ⏳ Bâtiments + personnalité Démolisseur (4b).
 5. Consigne du Stratège ; Gardien sur les bâtiments.
 6. Premier set branché.

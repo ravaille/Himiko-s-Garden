@@ -11,6 +11,8 @@ const TRIGGER: Record<Trigger, string> = {
   kingHit: "Quand ton Roi est touché",
   draw: "Quand tu pioches",
   sacrifice: "Quand tu sacrifies une carte",
+  spell: "Quand tu lances un sort",
+  anySpell: "Quand un sort est lancé",
 };
 
 const SELECTOR: Record<Selector, string> = {
@@ -24,6 +26,7 @@ const SELECTOR: Record<Selector, string> = {
   enemyKing: "le Roi adverse",
   ownKing: "ton Roi",
   source: "l'attaquant",
+  chosen: "la cible",
 };
 
 function actionText(a: Action): string {
@@ -36,6 +39,10 @@ function actionText(a: Action): string {
       const parts = [a.attack ? `${a.attack > 0 ? "+" : ""}${a.attack}⚔` : "", a.hp ? `${a.hp > 0 ? "+" : ""}${a.hp}♥` : ""].filter(Boolean);
       return `${SELECTOR[a.to]} : ${parts.join(" ")}`;
     }
+    case "destroy":
+      return `détruit ${SELECTOR[a.to]}`;
+    case "summon":
+      return `invoque ${(a.count ?? 1) > 1 ? `${a.count} ` : ""}${a.card.name}`;
     case "draw":
       return `pioche ${a.count}`;
     case "energy":
@@ -45,7 +52,13 @@ function actionText(a: Action): string {
 
 /** Rules text generated from the effect data, so the card text can never disagree with what it does. */
 export function effectLines(def: CardDef): string[] {
-  return (def.effects ?? []).map((e: Effect) => `${TRIGGER[e.on]} : ${e.do.map(actionText).join(", ")}.`);
+  const lines: string[] = [];
+  if (def.kind === "spell" && def.spell) {
+    const who = { enemyUnit: "Cible : un ennemi.", allyUnit: "Cible : un allié.", enemyAny: "Cible : un ennemi ou le Roi adverse." };
+    const first = def.spell.target ? who[def.spell.target] : "Se joue n'importe où.";
+    lines.push(`${first} ${def.spell.do.map(actionText).join(", ")}.`);
+  }
+  return lines.concat((def.effects ?? []).map((e: Effect) => `${TRIGGER[e.on]} : ${e.do.map(actionText).join(", ")}.`));
 }
 
 /** Display text of the keywords a card has. */

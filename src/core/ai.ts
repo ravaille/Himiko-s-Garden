@@ -28,7 +28,7 @@ export function poseAI(state: GameState): void {
     if (slot === undefined) break;
     const options = p.hand
       .map((card, index) => ({ card, index }))
-      .filter((o) => o.card.cost <= p.energy)
+      .filter((o) => o.card.cost <= p.energy && o.card.kind !== "spell") // the baseline AI does not cast spells yet
       .sort((a, b) => value(b.card) - value(a.card));
     if (options.length === 0) break;
     playCard(state, options[0].index, slot);

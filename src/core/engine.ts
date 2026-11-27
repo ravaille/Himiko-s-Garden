@@ -1,7 +1,7 @@
-import "./effects"; // registers the card-effects handler on the event bus
+import { castSpell } from "./effects";
 import { emit } from "./events";
 import { nextRandom, shuffle } from "./rng";
-import type { CardDef, Config, GameState, Keywords, PlayerState, Target, Unit } from "./types";
+import type { CardDef, Choice, Config, GameState, Keywords, PlayerState, Target, Unit } from "./types";
 
 export const BOARD_SIZE = 7;
 export const FATIGUE_DAMAGE = 10;
@@ -19,7 +19,6 @@ function newPlayer(deck: CardDef[], state: { rngState: number }, cfg: Config): P
   const shuffled = shuffle(deck, state);
   return {
     kingHp: cfg.kingHp,
-    kingMax: cfg.kingHp,
     deck: shuffled.slice(cfg.handSize),
     hand: shuffled.slice(0, cfg.handSize),
     graveyard: [],
@@ -90,14 +89,11 @@ export function offer(state: GameState, handIndex: number): void {
   emit(state, { type: "sacrificed", side: state.current, card });
 }
 
-export function playCard(state: GameState, handIndex: number, slot: number): void {
-  const p = state.players[state.current];
-  const card = p.hand[handIndex];
-  if (!card) throw new Error("No such card in hand");
-  if (slot < 0 || slot >= BOARD_SIZE || p.board[slot]) throw new Error("Slot unavailable");
-  if (card.cost > p.energy) throw new Error("Not enough energy");
-  p.hand.splice(handIndex, 1);
-  p.energy -= card.cost;
+/** Slots used for summoned cards, in order: centre first. */
+export const SUMMON_ORDER = [3, 2, 4, 1, 5, 0, 6] as const;
+
+function placeUnit(state: GameState, side: 0 | 1, card: CardDef, slot: number): Unit {
+  const p = state.players[side];
   const unit: Unit = {
     uid: state.nextUid++,
     def: card,
@@ -108,7 +104,56 @@ export function playCard(state: GameState, handIndex: number, slot: number): voi
     lastAttackerUid: null,
   };
   p.board[slot] = unit;
-  emit(state, { type: "played", side: state.current, slot, uid: unit.uid });
+  emit(state, { type: "played", side, slot, uid: unit.uid });
+  return unit;
+}
+
+/** Puts a card (token) on the first free slot of `side`; returns null when the side is full (nothing happens). */
+export function summonUnit(state: GameState, side: 0 | 1, card: CardDef): Unit | null {
+  const slot = SUMMON_ORDER.find((s) => !state.players[side].board[s]);
+  return slot === undefined ? null : placeUnit(state, side, card, slot);
+}
+
+/** Valid targets for a spell cast by `side` (spells may target ghostly cards). Empty list = no target needed or none available. */
+export function spellTargets(state: GameState, side: 0 | 1, card: CardDef): Choice[] {
+  const kind = card.spell?.target;
+  if (!kind) return [];
+  const foe = side === 0 ? 1 : 0;
+  const unitsOf = (s: 0 | 1): Choice[] =>
+    state.players[s].board.flatMap((u, slot) => (u ? [{ kind: "unit" as const, side: s, slot }] : []));
+  if (kind === "allyUnit") return unitsOf(side);
+  if (kind === "enemyUnit") return unitsOf(foe);
+  return [...unitsOf(foe), { kind: "king", side: foe }];
+}
+
+/**
+ * Plays a card from the hand. Creatures need a free `slot`. Spells that need a target take a `choice`
+ * (one of `spellTargets`); spells without target ignore both (the UI lets the player drop them anywhere).
+ */
+export function playCard(state: GameState, handIndex: number, slot: number, choice?: Choice): void {
+  const side = state.current;
+  const p = state.players[side];
+  const card = p.hand[handIndex];
+  if (!card) throw new Error("No such card in hand");
+  if (card.cost > p.energy) throw new Error("Not enough energy");
+  if (card.kind === "spell") {
+    let chosen: Choice | null = null;
+    if (card.spell?.target) {
+      const ok = choice && spellTargets(state, side, card).some((t) => t.kind === choice.kind && t.side === choice.side && (t.kind === "king" || (choice.kind === "unit" && t.slot === choice.slot)));
+      if (!ok) throw new Error("Invalid target");
+      chosen = choice!;
+    }
+    p.hand.splice(handIndex, 1);
+    p.energy -= card.cost;
+    castSpell(state, side, card, chosen);
+    p.graveyard.push(card);
+    emit(state, { type: "spell", side, card });
+    return;
+  }
+  if (slot < 0 || slot >= BOARD_SIZE || p.board[slot]) throw new Error("Slot unavailable");
+  p.hand.splice(handIndex, 1);
+  p.energy -= card.cost;
+  placeUnit(state, side, card, slot);
 }
 
 // ---------------------------------------------------------------- keywords

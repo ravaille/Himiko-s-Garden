@@ -45,7 +45,9 @@ export type Trigger =
   | "enemyDeath" // when a card of the other side dies
   | "kingHit" // when its owner's king is hit
   | "draw" // when its owner draws a card
-  | "sacrifice"; // when its owner sacrifices a card
+  | "sacrifice" // when its owner sacrifices a card
+  | "spell" // when its owner casts a spell
+  | "anySpell"; // when anyone casts a spell
 
 /** Who an action applies to, relative to the card carrying the effect. */
 export type Selector =
@@ -58,16 +60,32 @@ export type Selector =
   | "strongestEnemy"
   | "enemyKing"
   | "ownKing"
-  | "source"; // the card that just damaged it
+  | "source" // the card that just damaged it
+  | "chosen"; // the target picked by the player when casting a spell
 
 export type Action =
   | { kind: "damage"; to: Selector; amount: number }
   | { kind: "heal"; to: Selector; amount: number }
   /** Permanent stat change (docs: stat changes are permanent by default). */
   | { kind: "buff"; to: Selector; attack?: number; hp?: number }
+  /** Kills cards outright (not kings). */
+  | { kind: "destroy"; to: Selector }
+  /** Puts copies of a card (a token) on free slots of the owner's side; fails silently when the side is full. */
+  | { kind: "summon"; card: CardDef; count?: number }
   | { kind: "draw"; count: number }
   /** Temporary energy for this turn. */
   | { kind: "energy"; amount: number };
+
+/** What a spell asks the player to pick when it is cast (none = it can be dropped on any slot). */
+export type SpellTarget = "enemyUnit" | "allyUnit" | "enemyAny"; // enemyAny = an enemy card or the enemy king
+
+export interface Spell {
+  target?: SpellTarget;
+  do: Action[];
+}
+
+/** A target picked by the player. */
+export type Choice = { kind: "unit"; side: 0 | 1; slot: number } | { kind: "king"; side: 0 | 1 };
 
 export interface Effect {
   on: Trigger;
@@ -97,6 +115,11 @@ export interface CardDef {
   /** Archetype types, shared across races (e.g. "samurai", "mage"). */
   types?: string[];
   keywords?: Keywords;
+  /** `spell` cards are cast from the hand and go to the graveyard; equipment is a spell that buffs a card. Default: creature. */
+  kind?: "creature" | "spell";
+  spell?: Spell;
+  /** Tokens are summoned by effects and never appear in the collection. */
+  token?: boolean;
   /** Triggered effects (see core/effects.ts). */
   effects?: Effect[];
   /** Deck-building constraint (see docs/design/10-deckbuilding.md). */
@@ -126,8 +149,6 @@ export interface Unit {
 
 export interface PlayerState {
   kingHp: number;
-  /** Starting king HP: healing cannot exceed it. */
-  kingMax: number;
   deck: CardDef[];
   hand: CardDef[];
   /** Dead and sacrificed cards. */
@@ -156,6 +177,7 @@ export type GameEvent =
   | { type: "draw"; side: 0 | 1; failed: boolean }
   | { type: "played"; side: 0 | 1; slot: number; uid: number }
   | { type: "sacrificed"; side: 0 | 1; card: CardDef }
+  | { type: "spell"; side: 0 | 1; card: CardDef }
   /** `side` attacks; `target` is a slot on the other side or the king. */
   | { type: "attack"; side: 0 | 1; slot: number; uid: number; target: number | "king" }
   /** A card of `side` took damage. */

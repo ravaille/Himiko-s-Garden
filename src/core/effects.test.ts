@@ -82,7 +82,7 @@ describe("triggers", () => {
 });
 
 describe("actions and selectors", () => {
-  it("heal is capped at max HP, king heal at the starting HP", () => {
+  it("heal is capped at max HP for cards, but not for the king", () => {
     const heal: Effect = { on: "play", do: [{ kind: "heal", to: "ownKing", amount: 50 }, { kind: "heal", to: "adjacent", amount: 50 }] };
     const s = newGame([filler, filler], 1);
     beginTurn(s);
@@ -92,7 +92,7 @@ describe("actions and selectors", () => {
     s.players[0].kingHp = 130;
     s.players[0].hand = [card("monk", 1, 1, [heal])];
     playCard(s, 0, 3);
-    expect(s.players[0].kingHp).toBe(150);
+    expect(s.players[0].kingHp).toBe(180);
     expect(s.players[0].board[2]!.hp).toBe(20);
   });
 

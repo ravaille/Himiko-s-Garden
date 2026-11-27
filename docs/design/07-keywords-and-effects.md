@@ -93,7 +93,18 @@ Le **Gardien** dévie même vers un Spectral (l'IA frappe bêtement le Gardien s
 ## Effets codés (étape 3, 2026-11-27)
 - **Déclencheurs** : à la pose, début de tour, quand elle attaque, quand elle est touchée, à sa mort, quand un allié/ennemi meurt, quand le Roi est touché, quand on pioche, quand on sacrifie.
 - **Cibles** : elle-même, l'ennemi en face, tous les ennemis, tous les alliés, alliés adjacents, ennemi au hasard, ennemi le plus fort, Roi adverse, son Roi, l'attaquant.
-- **Actions** : dégâts, soin (le Roi ne dépasse pas ses PV de départ), bonus de stats **permanent**, piocher N (pioche vide = -10 PV), énergie (temporaire, ce tour).
+- **Actions** : dégâts, soin (**le Roi peut dépasser ses PV de départ**, décision de Romain ; une carte ne dépasse pas ses PV max), bonus de stats **permanent**, piocher N (pioche vide = -10 PV), énergie (temporaire, ce tour).
 - Les effets **ne peuvent pas cibler un ennemi Spectral** (seulement les attaques de Spectraux et les sorts).
 - Le texte des cartes est **généré depuis les données** : il ne peut pas contredire l'effet.
 - Pas encore : conditions, scaling, durées limitées, sorts/équipements/bâtiments/jetons (étape 4), filtres par race/type.
+
+## Sorts, équipements, jetons (étape 4a, 2026-11-27)
+- **Se jouent sur le terrain** : on sélectionne le sort dans la main, puis on clique sur le plateau.
+  - **Sort ciblé** : clic sur une cible valide (surbrillance bleue). Un clic ailleurs est refusé, sans consommer la carte ni l'énergie.
+  - **Sort sans cible** : **n'importe quelle case** (ou le Roi) le lance : évite les mis-clics.
+- Un sort coûte de l'énergie, **sans limite par tour**, se résout **immédiatement**, puis va au cimetière.
+- **Les sorts peuvent cibler un Spectral** ; pas les effets de cartes.
+- **Équipement** = sort qui buffe une carte alliée (cumulable, permanent).
+- **Déclencheurs de sort** : « quand tu lances un sort » (ses propres sorts) et « quand un sort est lancé » (tous).
+- **Nouvelles actions** : détruire, invoquer (jeton) sur la première case libre, centre d'abord (échoue sans erreur si le terrain est plein). Nouvelle cible : « la cible » choisie.
+- **Pas encore** : bâtiments (étape 4b) et IA qui lance des sorts (l'IA de base les sacrifie).

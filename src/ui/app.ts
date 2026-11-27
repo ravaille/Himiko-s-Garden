@@ -1,7 +1,7 @@
 import { poseAI } from "../core/ai";
 import { buildRandomDeck } from "../core/deck";
-import { BOARD_SIZE, actionPhase, beginTurn, endTurn, isDeploying, newGame, offer, playCard, previewTargets } from "../core/engine";
-import type { CardDef, GameState } from "../core/types";
+import { BOARD_SIZE, actionPhase, beginTurn, endTurn, isDeploying, newGame, offer, playCard, previewTargets, spellTargets } from "../core/engine";
+import type { CardDef, Choice, GameState } from "../core/types";
 import { TEST_POOL } from "../data/cards";
 import { cardHtml } from "./card";
 import { currentDeck, deckbuilderClick, deckbuilderFilter, deckbuilderHtml, duelBlockers } from "./deckbuilder";
@@ -78,23 +78,32 @@ function newDuel(): void {
 
 // ------------------------------------------------------------------ rendering
 
+/** While a targeted spell is selected: the legal targets are highlighted. */
+function validTargets() {
+  const c = selected !== null ? game.players[HUMAN].hand[selected] : undefined;
+  return c && c.kind === "spell" ? spellTargets(game, HUMAN, c) : [];
+}
+
 function boardHtml(side: 0 | 1): string {
   const p = game.players[side];
+  const valid = validTargets();
   let cells = "";
   for (let i = 0; i < BOARD_SIZE; i++) {
     const u = p.board[i];
     const centre = i >= 2 && i <= 4 ? " centre" : "";
     const wait = u && isDeploying(p, u) ? " deploying" : "";
-    cells += `<div class="slot${centre}${wait}" data-side="${side}" data-slot="${i}">${u ? cardHtml(u.def, u.hp, u.attack, u.maxHp) : ""}${wait ? '<span class="zzz">💤</span>' : ""}</div>`;
+    const ok = valid.some((t) => t.kind === "unit" && t.side === side && t.slot === i) ? " valid" : "";
+    cells += `<div class="slot${centre}${wait}${ok}" data-side="${side}" data-slot="${i}">${u ? cardHtml(u.def, u.hp, u.attack, u.maxHp) : ""}${wait ? '<span class="zzz">💤</span>' : ""}</div>`;
   }
   return `<div class="board">${cells}</div>`;
 }
 
 function kingHtml(side: 0 | 1): string {
   const p = game.players[side];
-  const pct = Math.max(0, Math.round((100 * p.kingHp) / 150));
+  const pct = Math.min(100, Math.max(0, Math.round((100 * p.kingHp) / 150)));
   const who = side === HUMAN ? "👑 Toi" : "👹 Adversaire";
-  return `<div class="king" data-side="${side}" data-king="1">
+  const ok = validTargets().some((t) => t.kind === "king" && t.side === side) ? " valid" : "";
+  return `<div class="king${ok}" data-side="${side}" data-king="1">
     <b>${who}</b>
     <div class="bar"><div style="width:${pct}%"></div></div>
     <span>♥ ${Math.max(0, p.kingHp)}</span>
@@ -190,7 +199,7 @@ function onHover(e: MouseEvent): void {
   if (!slotEl || slotEl.querySelector(".card")) return;
   const slot = Number(slotEl.dataset.slot);
   const def = game.players[HUMAN].hand[selected];
-  if (!def) return;
+  if (!def || def.kind === "spell") return;
   const { targets, note } = previewTargets(game, HUMAN, slot, def);
   for (const t of targets) {
     const el =
@@ -264,6 +273,27 @@ function onClick(e: MouseEvent): void {
   if (handEl) {
     const i = Number(handEl.dataset.hand);
     selected = selected === i ? null : i;
+    return render();
+  }
+  const anySlot = t.closest<HTMLElement>(".slot");
+  const kingEl = t.closest<HTMLElement>(".king");
+  const picked = selected !== null ? me.hand[selected] : undefined;
+  if (picked && picked.kind === "spell" && (anySlot || kingEl)) {
+    // Spells are played on the board: on their target, or anywhere when they need none (avoids mis-clicks).
+    const side = Number((anySlot ?? kingEl)!.dataset.side) as 0 | 1;
+    const choice: Choice | undefined = kingEl
+      ? { kind: "king", side }
+      : game.players[side].board[Number(anySlot!.dataset.slot)]
+        ? { kind: "unit", side, slot: Number(anySlot!.dataset.slot) }
+        : undefined;
+    try {
+      playCard(game, selected!, 0, choice);
+      message = `${picked.name} est lancé${picked.spell?.target ? "" : " (effet immédiat)"}.`;
+      selected = null;
+    } catch (err) {
+      const m = (err as Error).message;
+      message = `⚠️ ${m === "Not enough energy" ? "Pas assez d'énergie." : "Cible invalide : clique sur une cible en surbrillance."}`;
+    }
     return render();
   }
   const slotEl = t.closest<HTMLElement>('.slot[data-side="0"]');

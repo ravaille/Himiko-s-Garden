@@ -1,4 +1,4 @@
-import type { CardDef, Effect, Keywords, Personality, Race, Rank } from "../core/types";
+import type { CardDef, Effect, Keywords, Personality, Race, Rank, Spell } from "../core/types";
 import { TEST_POOL } from "./cards";
 
 /**
@@ -138,7 +138,39 @@ const EFFECT_CARDS: CardDef[] = [
   fx("warlord", "Seigneur démon", 6, 64, 46, "berserk", "demon", [{ on: "kingHit", do: [{ kind: "buff", to: "self", attack: 10 }] }], { types: ["demon"] }),
 ];
 
-export const COLLECTION: CardDef[] = [...GENERALS, ...tagged(), ...ONI_CARDS, ...SPIRITS, ...EFFECT_CARDS];
+/** Token summoned by spells (never in the collection). */
+export const SKELETON: CardDef = {
+  id: "token-skeleton",
+  name: "Squelette",
+  cost: 0,
+  attack: 10,
+  hp: 10,
+  personality: "brave",
+  race: "demon",
+  types: ["skeleton"],
+  token: true,
+};
+
+function sp(id: string, name: string, cost: number, spell: Spell, extra: Partial<CardDef> = {}): CardDef {
+  return { id: `sp-${id}`, name, cost, attack: 0, hp: 0, personality: "none", kind: "spell", spell, ...extra };
+}
+
+const SPELLS: CardDef[] = [
+  sp("fireball", "Boule de feu", 2, { target: "enemyAny", do: [{ kind: "damage", to: "chosen", amount: 20 }] }, { types: ["mage"] }),
+  sp("chain", "Éclair en chaîne", 3, { do: [{ kind: "damage", to: "enemies", amount: 10 }] }, { types: ["mage"] }),
+  sp("study", "Étude", 1, { do: [{ kind: "draw", count: 2 }] }, { types: ["mage"] }),
+  sp("blade", "Katana béni", 1, { target: "allyUnit", do: [{ kind: "buff", to: "chosen", attack: 10 }] }),
+  sp("execution", "Exécution", 3, { target: "enemyUnit", do: [{ kind: "destroy", to: "chosen" }] }),
+  sp("onsen", "Source chaude", 2, { do: [{ kind: "heal", to: "allies", amount: 15 }] }),
+  sp("pact", "Pacte de sang", 1, { do: [{ kind: "damage", to: "ownKing", amount: 20 }, { kind: "summon", card: SKELETON, count: 2 }] }, { race: "demon" }),
+];
+
+const MAGES: CardDef[] = [
+  fx("apprentice", "Apprentie mage", 1, 8, 12, "passive", "human", [{ on: "spell", do: [{ kind: "damage", to: "enemyKing", amount: 5 }] }], { types: ["mage"] }),
+  fx("archmage", "Archimage", 4, 20, 60, "passive", "human", [{ on: "spell", do: [{ kind: "draw", count: 1 }] }], { types: ["mage"], rank: "lieutenant" }),
+];
+
+export const COLLECTION: CardDef[] = [...GENERALS, ...tagged(), ...ONI_CARDS, ...SPIRITS, ...EFFECT_CARDS, ...MAGES, ...SPELLS];
 
 export function cardById(id: string): CardDef | undefined {
   return COLLECTION.find((c) => c.id === id);
