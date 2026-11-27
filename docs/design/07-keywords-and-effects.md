@@ -117,3 +117,10 @@ Le **Gardien** dévie même vers un Spectral (l'IA frappe bêtement le Gardien s
 - **Sorts** : par défaut ils **peuvent cibler les bâtiments** (cible « ennemi, bâtiment ou Roi »). Seule une carte explicite (« ennemi » = cartes seulement, « bâtiment ennemi » = bâtiments seulement) restreint. Les sorts de zone et « tous les ennemis » (dégâts, destruction) touchent aussi les bâtiments.
 - **Effets de bâtiment** : mêmes déclencheurs que les cartes, plus « quand cette case est attaquée » (même case vide) ; cible « la carte sur cette case ». Un bâtiment ne peut pas cibler les Spectraux.
 - **Pas encore** : le bâtiment qui se transforme en unité (Tsukumogami), les bâtiments-jetons posés par un sort, le Stratège sur un bâtiment.
+
+## Stratège (étape 5, 2026-11-27)
+- **Ordre** : en phase de pose, clic sur son Stratège, puis clic sur la cible (surbrillance bleue). Cibles légales : toute carte ennemie qu'il peut cibler (pas les Spectraux), tout bâtiment ennemi, le Roi adverse. Un clic ailleurs annule.
+- L'ordre **persiste d'un tour à l'autre** tant que la cible vit ; ensuite le Stratège combat comme un **Brave**. Un nouvel ordre remplace l'ancien.
+- Marqueur 🎯 rouge sur la cible ; anneau jaune sur le Stratège en cours d'ordre.
+- Le **Gardien** dévie toujours l'attaque ordonnée ; Perforant/Multihit/Bushido fonctionnent comme d'habitude.
+- L'IA adverse ne donne pas d'ordre : ses Stratèges agissent en Brave.

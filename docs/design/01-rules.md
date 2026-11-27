@@ -33,7 +33,7 @@ Les personnalités qui « choisissent » une cible la prennent parmi les cibles 
 | **Rancunier** | Frappe celui qui l'a touché en dernier ; sinon se comporte comme **Défensif**. |
 | **Berzerk** | Frappe un ennemi au hasard (tirage à graine). |
 | **Fidèle** | Attaque la même cible qu'un allié ; sans allié ayant agi, il agit en **Rancunier** (passif/vengeur, il attend et se défend). |
-| **Stratège** | Reçoit une consigne de cible du joueur en phase de pose, puis l'exécute seul. |
+| **Stratège** | Le joueur clique dessus pendant son tour pour lui **désigner une cible** : n'importe quelle carte ennemie (hors Spectral), bâtiment ou le Roi adverse. Il suit l'ordre **jusqu'à ce que la cible disparaisse** (ou qu'on lui en donne un autre), puis, comme sans ordre, agit en **Brave**. Seuls les **Gardiens** dévient ensuite l'attaque. |
 | **Défensif** | N'attaque que s'il est **sûr de tuer** sa cible ; sinon reste passif. |
 | **Passif** | N'attaque pas (sauf effet d'une autre carte). |
 | **Démolisseur** | Détruit les **bâtiments ennemis** : sur case vide d'abord, sinon la carte qui est dessus ; sans bâtiment, il riposte seulement. Les bâtiments ne sont jamais ciblés par l'automatique, sauf par lui et par le Berzerk (hasard sur tout). |

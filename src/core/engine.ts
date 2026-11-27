@@ -1,7 +1,7 @@
 import { castSpell } from "./effects";
 import { emit } from "./events";
 import { nextRandom, shuffle } from "./rng";
-import type { Building, CardDef, Choice, Config, GameState, Keywords, PlayerState, Target, Unit } from "./types";
+import type { Building, CardDef, Choice, Config, GameState, Keywords, Order, PlayerState, Target, Unit } from "./types";
 
 export const BOARD_SIZE = 7;
 export const FATIGUE_DAMAGE = 10;
@@ -132,6 +132,39 @@ export function spellTargets(state: GameState, side: 0 | 1, card: CardDef): Choi
 
 const sameChoice = (a: Choice, b: Choice): boolean =>
   a.kind === b.kind && a.side === b.side && (a.kind === "king" || (b.kind !== "king" && a.slot === b.slot));
+
+/** What a Strategist may be ordered to attack: any enemy card it can target, any enemy building, or the enemy king. */
+export function orderTargets(state: GameState, side: 0 | 1, unit: Unit): Choice[] {
+  const foe = side === 0 ? 1 : 0;
+  const p = state.players[foe];
+  const out: Choice[] = [];
+  p.board.forEach((u, slot) => {
+    if (u && canTarget(unit, u)) out.push({ kind: "unit", side: foe, slot });
+  });
+  p.buildings.forEach((b, slot) => {
+    if (b) out.push({ kind: "building", side: foe, slot });
+  });
+  out.push({ kind: "king", side: foe });
+  return out;
+}
+
+/** The active player orders their Strategist at `slot` to attack `choice` (null clears the order). */
+export function giveOrder(state: GameState, slot: number, choice: Choice | null): void {
+  const side = state.current;
+  const unit = state.players[side].board[slot];
+  if (!unit || unit.def.personality !== "strategist") throw new Error("Not a strategist");
+  if (choice === null) {
+    unit.order = undefined;
+    return;
+  }
+  if (!orderTargets(state, side, unit).some((t) => sameChoice(t, choice))) throw new Error("Invalid target");
+  const foeP = state.players[side === 0 ? 1 : 0];
+  let order: Order;
+  if (choice.kind === "king") order = { kind: "king" };
+  else if (choice.kind === "unit") order = { kind: "unit", uid: foeP.board[choice.slot]!.uid };
+  else order = { kind: "building", uid: foeP.buildings[choice.slot]!.uid };
+  unit.order = order;
+}
 
 /**
  * Plays a card from the hand. Creatures need a free `slot`. Spells that need a target take a `choice`
@@ -269,8 +302,25 @@ function chooseTarget(
       return null;
     case "assassin":
       return KING;
+    case "strategist": {
+      // Follows the player's order; once the target is gone (or with no order) it fights like a Brave.
+      const o = attacker.order;
+      if (o) {
+        if (o.kind === "king") return KING;
+        if (o.kind === "unit") {
+          const s = enemy.board.findIndex((u) => u?.uid === o.uid);
+          const u = enemy.board[s];
+          if (u && canTarget(attacker, u)) return { kind: "unit", slot: s, unit: u };
+        } else {
+          const s = enemy.buildings.findIndex((b) => b?.uid === o.uid);
+          const b = enemy.buildings[s];
+          if (b) return { kind: "building", slot: s, building: b };
+        }
+        attacker.order = undefined;
+      }
+      return cards.length > 0 ? (beefiest(cards) ?? KING) : KING;
+    }
     case "brave":
-    case "strategist": // provisional: the player's order is not implemented yet
       return cards.length > 0 ? (beefiest(cards) ?? KING) : KING;
     case "berserk": {
       const all: UnitTarget[] = [];

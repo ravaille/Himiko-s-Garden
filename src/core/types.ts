@@ -137,6 +137,9 @@ export interface CardDef {
   text?: string;
 }
 
+/** A Strategist's standing order: who it attacks (by uid, so it follows the target around). */
+export type Order = { kind: "unit" | "building"; uid: number } | { kind: "king" };
+
 /** A building: attached to one of its owner's slots, next to (not instead of) the card standing there. */
 export interface Building {
   uid: number;
@@ -158,6 +161,8 @@ export interface Unit {
   lastAttackerUid: number | null;
   /** Runtime keywords (effects may give/remove some); defaults to the card's own. */
   keywords?: Keywords;
+  /** Strategist only: the target the player picked; kept until the target is gone or a new order is given. */
+  order?: Order;
   /** uids of the cards that damaged this one (-1 = something else), for Bushido. */
   touchedBy?: number[];
 }

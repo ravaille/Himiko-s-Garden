@@ -1,6 +1,6 @@
 import { poseAI } from "../core/ai";
 import { buildRandomDeck } from "../core/deck";
-import { BOARD_SIZE, actionPhase, beginTurn, endTurn, isDeploying, newGame, offer, playCard, previewTargets, spellTargets } from "../core/engine";
+import { BOARD_SIZE, actionPhase, beginTurn, endTurn, giveOrder, isDeploying, newGame, offer, orderTargets, playCard, previewTargets, spellTargets } from "../core/engine";
 import type { CardDef, Choice, GameState } from "../core/types";
 import { TEST_POOL } from "../data/cards";
 import { cardHtml } from "./card";
@@ -11,6 +11,8 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 let root: HTMLElement;
 let game: GameState;
 let selected: number | null = null;
+/** Slot of the Strategist the player is giving an order to (waiting for a target click), if any. */
+let ordering: number | null = null;
 let busy = false;
 let message = "";
 let speed = 1; // 1 = normal, 2 = fast
@@ -69,6 +71,7 @@ function newDuel(): void {
   screen = "duel";
   menuOpen = false;
   selected = null;
+  ordering = null;
   modal = null;
   busy = false;
   beginTurn(game); // the human plays first
@@ -78,15 +81,54 @@ function newDuel(): void {
 
 // ------------------------------------------------------------------ rendering
 
-/** While a targeted spell is selected: the legal targets are highlighted. */
-function validTargets() {
+/** Highlighted targets: for a selected targeted spell, or for the Strategist being ordered. */
+function validTargets(): Choice[] {
+  if (ordering !== null) {
+    const u = game.players[HUMAN].board[ordering];
+    return u ? orderTargets(game, HUMAN, u) : [];
+  }
   const c = selected !== null ? game.players[HUMAN].hand[selected] : undefined;
   return c && c.kind === "spell" ? spellTargets(game, HUMAN, c) : [];
+}
+
+/** Enemy slots / king currently marked by one of the player's Strategist orders. */
+function orderMarks(): { slots: Set<number>; king: boolean } {
+  const slots = new Set<number>();
+  let king = false;
+  const foe = game.players[1];
+  for (const u of game.players[HUMAN].board) {
+    const o = u?.order;
+    if (!o) continue;
+    if (o.kind === "king") king = true;
+    else {
+      const uids = o.kind === "unit" ? foe.board.map((x) => x?.uid) : foe.buildings.map((b) => b?.uid);
+      const i = uids.indexOf(o.uid);
+      if (i >= 0) slots.add(i);
+    }
+  }
+  return { slots, king };
+}
+
+/** Which target a click means. On a slot with both a card and a building, the legal one wins (the banner forces the building). */
+function pickChoice(t: HTMLElement, legal: Choice[]): Choice | undefined {
+  const anySlot = t.closest<HTMLElement>(".slot");
+  const kingEl = t.closest<HTMLElement>(".king");
+  if (!anySlot && !kingEl) return undefined;
+  const side = Number((anySlot ?? kingEl)!.dataset.side) as 0 | 1;
+  const slotNo = Number(anySlot?.dataset.slot);
+  const candidates: Choice[] = kingEl
+    ? [{ kind: "king", side }]
+    : t.closest(".bld")
+      ? [{ kind: "building", side, slot: slotNo }]
+      : [{ kind: "unit", side, slot: slotNo }, { kind: "building", side, slot: slotNo }];
+  const same = (a: Choice, b: Choice) => a.kind === b.kind && a.side === b.side && (a.kind === "king" || (b.kind !== "king" && a.slot === b.slot));
+  return candidates.find((c) => legal.some((l) => same(l, c))) ?? candidates[0];
 }
 
 function boardHtml(side: 0 | 1): string {
   const p = game.players[side];
   const valid = validTargets();
+  const marks = side === 1 ? orderMarks() : null;
   let cells = "";
   for (let i = 0; i < BOARD_SIZE; i++) {
     const u = p.board[i];
@@ -96,7 +138,9 @@ function boardHtml(side: 0 | 1): string {
     const b = p.buildings[i];
     const bOk = valid.some((t) => t.kind === "building" && t.side === side && t.slot === i) ? " valid" : "";
     const bld = b ? `<div class="bld${bOk}" data-bld="1" title="${b.def.name} : ${b.def.text ?? ""}">🏯 ${b.def.name} ♥${b.hp}</div>` : "";
-    cells += `<div class="slot${centre}${wait}${ok}" data-side="${side}" data-slot="${i}">${u ? cardHtml(u.def, u.hp, u.attack, u.maxHp) : ""}${bld}${wait ? '<span class="zzz">💤</span>' : ""}</div>`;
+    const marked = marks?.slots.has(i) ? " ordered" : "";
+    const ordersNow = side === HUMAN && ordering === i ? " ordering" : "";
+    cells += `<div class="slot${centre}${wait}${ok}${marked}${ordersNow}" data-side="${side}" data-slot="${i}">${u ? cardHtml(u.def, u.hp, u.attack, u.maxHp) : ""}${bld}${wait ? '<span class="zzz">💤</span>' : ""}</div>`;
   }
   return `<div class="board">${cells}</div>`;
 }
@@ -106,7 +150,8 @@ function kingHtml(side: 0 | 1): string {
   const pct = Math.min(100, Math.max(0, Math.round((100 * p.kingHp) / 150)));
   const who = side === HUMAN ? "👑 Toi" : "👹 Adversaire";
   const ok = validTargets().some((t) => t.kind === "king" && t.side === side) ? " valid" : "";
-  return `<div class="king${ok}" data-side="${side}" data-king="1">
+  const marked = side === 1 && orderMarks().king ? " ordered" : "";
+  return `<div class="king${ok}${marked}" data-side="${side}" data-king="1">
     <b>${who}</b>
     <div class="bar"><div style="width:${pct}%"></div></div>
     <span>♥ ${Math.max(0, p.kingHp)}</span>
@@ -279,6 +324,21 @@ function onClick(e: MouseEvent): void {
   if (handEl) {
     const i = Number(handEl.dataset.hand);
     selected = selected === i ? null : i;
+    ordering = null;
+    return render();
+  }
+  if (ordering !== null) {
+    // The player picked a Strategist and now clicks its target (any enemy card, building or the king); a click elsewhere cancels.
+    const strat = me.board[ordering];
+    const choice = strat ? pickChoice(t, orderTargets(game, HUMAN, strat)) : undefined;
+    try {
+      if (!strat || !choice || choice.side !== 1) throw new Error("cancel");
+      giveOrder(game, ordering, choice);
+      message = `🎯 ${strat.def.name} suivra cet ordre jusqu'à ce que la cible disparaisse.`;
+    } catch {
+      message = "Ordre annulé.";
+    }
+    ordering = null;
     return render();
   }
   const anySlot = t.closest<HTMLElement>(".slot");
@@ -286,17 +346,7 @@ function onClick(e: MouseEvent): void {
   const picked = selected !== null ? me.hand[selected] : undefined;
   if (picked && picked.kind === "spell" && (anySlot || kingEl)) {
     // Spells are played on the board: on their target, or anywhere when they need none (avoids mis-clicks).
-    const side = Number((anySlot ?? kingEl)!.dataset.side) as 0 | 1;
-    const slotNo = Number(anySlot?.dataset.slot);
-    const candidates: Choice[] = kingEl
-      ? [{ kind: "king", side }]
-      : t.closest(".bld")
-        ? [{ kind: "building", side, slot: slotNo }]
-        : [{ kind: "unit", side, slot: slotNo }, { kind: "building", side, slot: slotNo }];
-    // On a slot holding both a card and a building, the legal one is picked (the banner forces the building).
-    const legal = spellTargets(game, HUMAN, picked);
-    const same = (a: Choice, b: Choice) => a.kind === b.kind && a.side === b.side && (a.kind === "king" || (b.kind !== "king" && a.slot === b.slot));
-    const choice: Choice | undefined = candidates.find((c) => legal.some((l) => same(l, c))) ?? candidates[0];
+    const choice = pickChoice(t, spellTargets(game, HUMAN, picked));
     try {
       playCard(game, selected!, 0, choice);
       message = `${picked.name} est lancé${picked.spell?.target ? "" : " (effet immédiat)"}.`;
@@ -308,6 +358,15 @@ function onClick(e: MouseEvent): void {
     return render();
   }
   const slotEl = t.closest<HTMLElement>('.slot[data-side="0"]');
+  if (slotEl && selected === null) {
+    // No card selected: clicking one of our Strategists lets the player choose its target.
+    const strat = me.board[Number(slotEl.dataset.slot)];
+    if (strat && strat.def.personality === "strategist") {
+      ordering = Number(slotEl.dataset.slot);
+      message = `🧠 Choisis la cible de ${strat.def.name} : une carte, un bâtiment ou le Roi adverse (surbrillance bleue).`;
+      return render();
+    }
+  }
   if (slotEl && selected !== null) {
     try {
       const c = me.hand[selected];
@@ -347,6 +406,7 @@ async function animateAttacks(): Promise<void> {
 async function endPlayerTurn(): Promise<void> {
   busy = true;
   selected = null;
+  ordering = null;
   message = "Tes cartes passent à l'attaque…";
   render();
   actionPhase(game);

@@ -114,7 +114,7 @@ export const PERSONALITY: Record<Personality, { icon: string; label: string; hel
   vengeful: { icon: "😠", label: "Rancunier", help: "Frappe celui qui l'a touché en dernier." },
   berserk: { icon: "💢", label: "Berzerk", help: "Frappe un ennemi au hasard." },
   faithful: { icon: "🤝", label: "Fidèle", help: "Attaque la même cible qu'un allié." },
-  strategist: { icon: "🧠", label: "Stratège", help: "Suivra tes ordres (bientôt)." },
+  strategist: { icon: "🧠", label: "Stratège", help: "Clique dessus pendant ton tour pour lui désigner une cible (carte, bâtiment ou Roi). Sans ordre, il agit comme un Brave." },
   defensive: { icon: "🏯", label: "Défensif", help: "N'attaque que s'il est sûr de tuer sa cible." },
   passive: { icon: "🍃", label: "Passif", help: "N'attaque pas." },
   demolisher: { icon: "🔨", label: "Démolisseur", help: "Détruit les bâtiments ennemis (sur case vide, sinon la carte dessus). Sans bâtiment : riposte seulement." },
