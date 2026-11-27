@@ -48,6 +48,15 @@ export interface PlayerState {
   offered: boolean;
 }
 
+/** One attack, recorded so a UI can replay it. */
+export interface AttackEvent {
+  side: 0 | 1;
+  from: number;
+  to: number | "king";
+  damage: number;
+  killed: boolean;
+}
+
 export interface GameState {
   players: [PlayerState, PlayerState];
   current: 0 | 1;
@@ -57,6 +66,8 @@ export interface GameState {
   nextUid: number;
   winner: 0 | 1 | "draw" | null;
   stats: { attacks: number };
+  /** Attacks of the last action phase (reset at the start of each one). */
+  events: AttackEvent[];
 }
 
 export type Target =

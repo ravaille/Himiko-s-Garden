@@ -63,9 +63,14 @@ Voir [05-hierarchy.md](05-hierarchy.md). Le **Roi = le joueur**, avec son total 
 ## Cartes : attributs annexes
 Au-delà de PV / Attaque / Coût : race, type, élément, pouvoir, effets spéciaux (voir [02-cards.md](02-cards.md)).
 
+## Structure d'un tour (validé)
+- **Tours alternés** : pioche → phase de pose/offrande → les cartes du joueur actif agissent → fin de tour.
+- **Plateau : 14 cases** (7 par joueur, face à face).
+- Le **second joueur** a **+1 énergie temporaire** à son premier tour (équivaut à -1 sur le coût de la première carte). Simulation : 51 % / 49 % entre premier et second joueur.
+- PVE : le joueur commence ; l'IA, sans besoin d'équité, est le second joueur.
+
 ## À définir
-- **Structure d'un tour** : alternée (chacun son tour) ou phases communes ? *Provisoire dans le simulateur : alternée, seules les cartes du joueur actif agissent.*
-- Qui commence, la pioche du premier joueur
+- La pioche du premier joueur au tout premier tour (provisoire : aucune)
 - Effets de case (à concevoir)
 - Fin de partie, égalité, limite de tours
 - Exemple de tour commenté

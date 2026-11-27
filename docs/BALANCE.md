@@ -17,3 +17,6 @@ Outil : `npm run sim -- <nb de duels>` (IA de base des deux côtés, decks aléa
 - Second joueur : pioche supplémentaire, 1ère offrande à 2, ou énergie +1.
 - Durée : augmenter les PV du Roi (200-250) si l'on veut des duels plus longs.
 - Offrande à 2 énergie : coût contrepartie (carte plus faible, etc.).
+
+## Simulation n°2 (compensation du second joueur : +1 énergie temporaire au 1er tour)
+Premier joueur **51,0 %** / second **48,9 %** (avant : 65,8 / 34,1). Durée inchangée (7,7 manches).

@@ -42,6 +42,7 @@ export function newGame(
     nextUid: 1,
     winner: null,
     stats: { attacks: 0 },
+    events: [],
   };
 }
 
@@ -56,6 +57,8 @@ export function beginTurn(state: GameState): void {
     if (card) p.hand.push(card);
   }
   p.energy = p.maxEnergy;
+  // Second player's compensation: +1 temporary energy on their first turn.
+  if (state.current === 1 && p.turnsPlayed === 1) p.energy += 1;
   p.offered = false;
 }
 
@@ -200,17 +203,20 @@ function redirectToGuardian(enemy: PlayerState, t: Target): Target {
   return t;
 }
 
-function hit(state: GameState, pi: 0 | 1, attacker: Unit, t: Target): void {
+function hit(state: GameState, pi: 0 | 1, from: number, attacker: Unit, t: Target): void {
   const enemy = state.players[pi === 0 ? 1 : 0];
   state.stats.attacks++;
   if (t.kind === "king") {
     enemy.kingHp -= attacker.def.attack;
+    state.events.push({ side: pi, from, to: "king", damage: attacker.def.attack, killed: false });
     if (enemy.kingHp <= 0) state.winner = pi;
     return;
   }
   t.unit.hp -= attacker.def.attack;
   t.unit.lastAttackerUid = attacker.uid;
-  if (t.unit.hp <= 0) enemy.board[t.slot] = null;
+  const killed = t.unit.hp <= 0;
+  if (killed) enemy.board[t.slot] = null;
+  state.events.push({ side: pi, from, to: t.slot, damage: attacker.def.attack, killed });
 }
 
 /** Action phase: the active player's deployed cards act left to right. */
@@ -219,6 +225,7 @@ export function actionPhase(state: GameState): void {
   const me = state.players[pi];
   const enemy = state.players[pi === 0 ? 1 : 0];
   const acted: Target[] = [];
+  state.events = [];
   for (let slot = 0; slot < BOARD_SIZE; slot++) {
     if (state.winner !== null) return;
     const unit = me.board[slot];
@@ -227,6 +234,6 @@ export function actionPhase(state: GameState): void {
     if (!chosen) continue;
     const target = redirectToGuardian(enemy, chosen);
     acted.push(target);
-    hit(state, pi, unit, target);
+    hit(state, pi, slot, unit, target);
   }
 }
