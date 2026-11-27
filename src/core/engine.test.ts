@@ -20,9 +20,9 @@ function setup(mine: Record<number, CardDef>, theirs: Record<number, CardDef>): 
   const s = newGame([filler, filler], 1);
   s.players[0].turnsPlayed = 5;
   for (const [slot, def] of Object.entries(mine))
-    s.players[0].board[+slot] = { uid: s.nextUid++, def, hp: def.hp, deployedOn: 1, lastAttackerUid: null };
+    s.players[0].board[+slot] = { uid: s.nextUid++, def, attack: def.attack, maxHp: def.hp, hp: def.hp, deployedOn: 1, lastAttackerUid: null };
   for (const [slot, def] of Object.entries(theirs))
-    s.players[1].board[+slot] = { uid: s.nextUid++, def, hp: def.hp, deployedOn: 1, lastAttackerUid: null };
+    s.players[1].board[+slot] = { uid: s.nextUid++, def, attack: def.attack, maxHp: def.hp, hp: def.hp, deployedOn: 1, lastAttackerUid: null };
   return s;
 }
 

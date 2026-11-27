@@ -85,7 +85,7 @@ function boardHtml(side: 0 | 1): string {
     const u = p.board[i];
     const centre = i >= 2 && i <= 4 ? " centre" : "";
     const wait = u && u.deployedOn >= p.turnsPlayed ? " deploying" : "";
-    cells += `<div class="slot${centre}${wait}" data-side="${side}" data-slot="${i}">${u ? cardHtml(u.def, u.hp) : ""}${wait ? '<span class="zzz">💤</span>' : ""}</div>`;
+    cells += `<div class="slot${centre}${wait}" data-side="${side}" data-slot="${i}">${u ? cardHtml(u.def, u.hp, u.attack, u.maxHp) : ""}${wait ? '<span class="zzz">💤</span>' : ""}</div>`;
   }
   return `<div class="board">${cells}</div>`;
 }

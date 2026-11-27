@@ -49,6 +49,9 @@ export interface CardDef {
 export interface Unit {
   uid: number;
   def: CardDef;
+  /** Current stats: start from the printed ones, effects change them; they vanish when the card leaves the board. */
+  attack: number;
+  maxHp: number;
   hp: number;
   /** Owner's turnsPlayed value when the unit was placed (deployment delay). */
   deployedOn: number;
@@ -79,6 +82,20 @@ export interface AttackEvent {
   killed: boolean;
 }
 
+/** Things that happen in a duel; effects trigger on them (see core/events.ts). */
+export type GameEvent =
+  | { type: "turnStart"; side: 0 | 1 }
+  | { type: "draw"; side: 0 | 1; failed: boolean }
+  | { type: "played"; side: 0 | 1; slot: number; uid: number }
+  | { type: "sacrificed"; side: 0 | 1; card: CardDef }
+  /** `side` attacks; `target` is a slot on the other side or the king. */
+  | { type: "attack"; side: 0 | 1; slot: number; uid: number; target: number | "king" }
+  /** A card of `side` took damage. */
+  | { type: "damaged"; side: 0 | 1; slot: number; uid: number; amount: number; sourceUid: number | null }
+  | { type: "died"; side: 0 | 1; slot: number; uid: number; card: CardDef }
+  /** The king of `side` took damage. */
+  | { type: "kingHit"; side: 0 | 1; amount: number };
+
 export interface GameState {
   players: [PlayerState, PlayerState];
   current: 0 | 1;
@@ -88,8 +105,10 @@ export interface GameState {
   nextUid: number;
   winner: 0 | 1 | "draw" | null;
   stats: { attacks: number };
-  /** Attacks of the last action phase (reset at the start of each one). */
+  /** Attacks of the last action phase (reset at the start of each one), for UI replay. */
   events: AttackEvent[];
+  /** Everything that happened since the start of the current turn (reset by beginTurn). */
+  trace: GameEvent[];
 }
 
 export type Target =

@@ -34,3 +34,20 @@ Résolution en chaîne sans limite de conception ; coupure technique à ≈ 200 
 | **Bâtiment : Autel** | début de mon tour | : | unité sur cette case | +2 PV | tant que le bâtiment vit |
 | **Sort : Sceau** (invocation) | à la pose | une case libre existe | case libre | poser un bâtiment-jeton « Torii » (effet de case) ; échoue si plein | : |
 | **Multihit perforant** | quand elle attaque | : | cible 1 puis cible suivante | frappe 2 fois ; excédent au-delà | : |
+
+## Règles de résolution (validées par Romain, 2026-11-27)
+1. **Mort et chaînes** : les effets de mort se résolvent **immédiatement**, avant que la carte suivante agisse ; les chaînes aussi (garde-fou : 200 événements par résolution).
+2. **Ordre de déclenchement simultané** : cartes du joueur dont c'est le tour (gauche → droite), puis celles de l'adversaire (gauche → droite).
+3. **« À chaque tour » / début de tour** : au début du tour de **son propriétaire** uniquement.
+4. **« À chaque sort lancé »** : sorts de **son propre camp** par défaut ; option « tout sort » possible par carte.
+5. **Sorts** : jouables uniquement en **phase de pose**, jamais en réaction.
+6. **Stats modifiées** : stockées sur la carte en jeu, perdues quand elle quitte le terrain ; une carte renvoyée en main ou réanimée revient avec ses stats imprimées. Les effets de coût agissent sur les cartes en main.
+7. **Format** : objets TypeScript typés (déclencheur, condition, cible, action) ; fichiers de données plus tard si besoin.
+
+## Plan de construction du moteur
+1. ✅ Stats en direct sur les cartes (`Unit.attack/maxHp/hp`) + bus d'événements (`core/events.ts` : turnStart, draw, played, sacrificed, attack, damaged, died, kingHit).
+2. Mots-clés : Haste, Bushido, Ghostly, Multihit, Perforant, Vol de vie, Régénération.
+3. Déclencheurs, actions et sélecteurs de cible.
+4. Sorts, équipements, bâtiments, jetons.
+5. Consigne du Stratège ; Gardien sur les bâtiments.
+6. Premier set branché.

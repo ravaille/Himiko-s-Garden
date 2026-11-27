@@ -1,3 +1,4 @@
+import { emit } from "./events";
 import { nextRandom, shuffle } from "./rng";
 import type { CardDef, Config, GameState, PlayerState, Target, Unit } from "./types";
 
@@ -46,6 +47,7 @@ export function newGame(
     winner: null,
     stats: { attacks: 0 },
     events: [],
+    trace: [],
   };
 }
 
@@ -56,20 +58,25 @@ export function beginTurn(state: GameState): void {
   const p = state.players[state.current];
   p.turnsPlayed++;
   p.fatigued = false;
-  if (state.turn > 0) {
-    const card = p.deck.shift();
-    if (card) p.hand.push(card);
-    else {
-      // Empty deck: failing to draw costs the king 10 HP (no stalemates).
-      p.fatigued = true;
-      p.kingHp -= FATIGUE_DAMAGE;
-      if (p.kingHp <= 0) state.winner = state.current === 0 ? 1 : 0;
-    }
-  }
+  state.trace = [];
   p.energy = p.maxEnergy;
   // Second player's compensation: +1 temporary energy on their first turn.
   if (state.current === 1 && p.turnsPlayed === 1) p.energy += 1;
   p.offered = false;
+  emit(state, { type: "turnStart", side: state.current });
+  if (state.turn > 0) {
+    const card = p.deck.shift();
+    if (card) {
+      p.hand.push(card);
+      emit(state, { type: "draw", side: state.current, failed: false });
+    } else {
+      // Empty deck: failing to draw costs the king 10 HP (no stalemates).
+      p.fatigued = true;
+      p.kingHp -= FATIGUE_DAMAGE;
+      if (p.kingHp <= 0) state.winner = state.current === 0 ? 1 : 0;
+      emit(state, { type: "draw", side: state.current, failed: true });
+    }
+  }
 }
 
 export function endTurn(state: GameState, cfg: Config = DEFAULT_CONFIG): void {
@@ -89,6 +96,7 @@ export function offer(state: GameState, handIndex: number): void {
   p.maxEnergy += gain;
   p.energy += gain;
   p.offered = true;
+  emit(state, { type: "sacrificed", side: state.current, card });
 }
 
 export function playCard(state: GameState, handIndex: number, slot: number): void {
@@ -99,13 +107,17 @@ export function playCard(state: GameState, handIndex: number, slot: number): voi
   if (card.cost > p.energy) throw new Error("Not enough energy");
   p.hand.splice(handIndex, 1);
   p.energy -= card.cost;
-  p.board[slot] = {
+  const unit: Unit = {
     uid: state.nextUid++,
     def: card,
+    attack: card.attack,
+    maxHp: card.hp,
     hp: card.hp,
     deployedOn: p.turnsPlayed,
     lastAttackerUid: null,
   };
+  p.board[slot] = unit;
+  emit(state, { type: "played", side: state.current, slot, uid: unit.uid });
 }
 
 // ---------------------------------------------------------------- targeting
@@ -136,7 +148,7 @@ function preferNonCowards<T extends { unit: Unit }>(list: T[]): T[] {
 
 /** Strongest = most HP, then most attack; ties keep the list's priority order. */
 function beefiest<T extends { unit: Unit }>(list: T[]): T | undefined {
-  return list.slice().sort((a, b) => b.unit.hp - a.unit.hp || b.unit.def.attack - a.unit.def.attack)[0];
+  return list.slice().sort((a, b) => b.unit.hp - a.unit.hp || b.unit.attack - a.unit.attack)[0];
 }
 
 const KING: Target = { kind: "king" };
@@ -150,7 +162,7 @@ function chooseTarget(
 ): Target | null {
   const enemy = state.players[pi === 0 ? 1 : 0];
   const cards = reachableCards(slot, enemy);
-  const atk = attacker.def.attack;
+  const atk = attacker.attack;
 
   const defensive = (): Target | null => {
     const killable = cards.filter((t) => t.unit.hp <= atk);
@@ -215,22 +227,28 @@ function redirectToGuardian(enemy: PlayerState, t: Target): Target {
 }
 
 function hit(state: GameState, pi: 0 | 1, from: number, attacker: Unit, t: Target): void {
-  const enemy = state.players[pi === 0 ? 1 : 0];
+  const foe = pi === 0 ? 1 : 0;
+  const enemy = state.players[foe];
+  const damage = attacker.attack;
   state.stats.attacks++;
+  emit(state, { type: "attack", side: pi, slot: from, uid: attacker.uid, target: t.kind === "king" ? "king" : t.slot });
   if (t.kind === "king") {
-    enemy.kingHp -= attacker.def.attack;
-    state.events.push({ side: pi, from, to: "king", damage: attacker.def.attack, killed: false });
-    if (enemy.kingHp <= 0) state.winner = pi;
+    enemy.kingHp -= damage;
+    state.events.push({ side: pi, from, to: "king", damage, killed: false });
+    emit(state, { type: "kingHit", side: foe, amount: damage });
+    if (enemy.kingHp <= 0 && state.winner === null) state.winner = pi;
     return;
   }
-  t.unit.hp -= attacker.def.attack;
+  t.unit.hp -= damage;
   t.unit.lastAttackerUid = attacker.uid;
+  emit(state, { type: "damaged", side: foe, slot: t.slot, uid: t.unit.uid, amount: damage, sourceUid: attacker.uid });
   const killed = t.unit.hp <= 0;
-  if (killed) {
+  state.events.push({ side: pi, from, to: t.slot, damage, killed });
+  if (killed && enemy.board[t.slot] === t.unit) {
     enemy.board[t.slot] = null;
     enemy.graveyard.push(t.unit.def);
+    emit(state, { type: "died", side: foe, slot: t.slot, uid: t.unit.uid, card: t.unit.def });
   }
-  state.events.push({ side: pi, from, to: t.slot, damage: attacker.def.attack, killed });
 }
 
 /** Action phase: the active player's deployed cards act left to right. */
@@ -271,7 +289,7 @@ export function previewTargets(
     return { targets: all.length > 0 ? all : [KING], note: "au hasard parmi tous les ennemis" };
   }
   if (def.personality === "passive") return { targets: [], note: "n'attaque pas" };
-  const ghost: Unit = { uid: -1, def, hp: def.hp, deployedOn: 0, lastAttackerUid: null };
+  const ghost: Unit = { uid: -1, def, attack: def.attack, maxHp: def.hp, hp: def.hp, deployedOn: 0, lastAttackerUid: null };
   const chosen = chooseTarget(state, pi, slot, ghost, []);
   if (!chosen) return { targets: [], note: "n'attaquera pas (aucune cible sûre)" };
   const final = redirectToGuardian(enemy, chosen);

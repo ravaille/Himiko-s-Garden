@@ -13,9 +13,11 @@ function cardText(def: CardDef): string {
  * Generic card layout (see docs/design/06-card-layout.md).
  * `hp` overrides the printed HP (damaged unit on the board).
  */
-export function cardHtml(def: CardDef, hp: number = def.hp): string {
+export function cardHtml(def: CardDef, hp: number = def.hp, attack: number = def.attack, maxHp: number = def.hp): string {
   const p = PERSONALITY[def.personality];
-  const damaged = hp < def.hp ? " damaged" : "";
+  const damaged = hp < maxHp ? " damaged" : "";
+  const buffedAtk = attack > def.attack ? " buffed" : attack < def.attack ? " damaged" : "";
+  const buffedHp = maxHp > def.hp && hp >= maxHp ? " buffed" : "";
   const rank = def.rank ? ` rank-${def.rank}` : "";
   const text = cardText(def);
   return `<div class="card pers-${def.personality}${rank}${text ? " has-text" : ""}" title="${p.label} : ${p.help}">
@@ -24,6 +26,6 @@ export function cardHtml(def: CardDef, hp: number = def.hp): string {
     <div class="art">${p.icon}</div>
     <div class="text">${text}</div>
     <div class="pers">${p.label}</div>
-    <div class="stats"><span class="atk">⚔ ${def.attack}</span><span class="hp${damaged}">♥ ${hp}</span></div>
+    <div class="stats"><span class="atk${buffedAtk}">⚔ ${attack}</span><span class="hp${damaged}${buffedHp}">♥ ${hp}</span></div>
   </div>`;
 }

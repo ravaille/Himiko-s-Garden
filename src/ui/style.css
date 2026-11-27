@@ -144,3 +144,5 @@ button.primary { background: var(--accent); border-color: var(--accent); font-we
 .menu { background: var(--panel); padding: 20px 28px; border-radius: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 240px; }
 .menu h2 { font-size: 1.4rem; margin: 0 0 6px; }
 @media (max-width: 760px) { .deckbuilder { grid-template-columns: 1fr; } .deckpanel { position: static; } .collection { max-height: none; } }
+.atk.buffed, .hp.buffed { color: #7fe3ff; font-weight: 700; }
+.atk.damaged { color: #ff5a5a; }
