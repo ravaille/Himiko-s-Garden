@@ -8,13 +8,13 @@
 - Histoire annexe optionnelle par carte (lore).
 
 ## Stats de base
-**PV, Attaque, Coût (énergie).**
+**PV, Attaque, Coût (énergie).** Budget de départ : ≈ 10 Attaque + 10 PV par énergie (voir [01-rules.md](01-rules.md)).
 
 ## Attributs annexes (par carte, optionnels)
 Race, type, élément, pouvoir, effets spéciaux. *Listes à définir.*
 
 ## Grade (Général / Colonel / Lieutenant)
-- Voir [01-rules.md](01-rules.md). **Temporaire : toute carte peut avoir tout grade** (option 1) ; l'option 2 (catégorie à part) reste ouverte.
+- Voir [05-hierarchy.md](05-hierarchy.md). **Temporaire : toute carte peut avoir tout grade** (option 1) ; l'option 2 (catégorie à part) reste ouverte.
 - Le grade est une donnée **distincte de la rareté**.
 
 ## Rareté
@@ -22,7 +22,8 @@ Commune, Rare, Épique, Légendaire, **Mythique** (niveau ultime). **Indépendan
 
 ## Boosters
 - 5 cartes par booster, **au moins 1 gradé garanti** (Général, Colonel ou Lieutenant).
-- Système complet à concevoir (taux, pitié, prix en monnaie de jeu).
+- **Plusieurs types de booster** à concevoir : avec garantie de gradé, 100 % aléatoire, autres.
+- Taux, pitié, prix en monnaie de jeu à définir.
 - Aucun argent réel.
 
 ## Progression des cartes

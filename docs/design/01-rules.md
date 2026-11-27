@@ -5,8 +5,8 @@
 
 ## Principes validés
 1. **Tour par tour, proche d'un TCG classique.**
-2. **Points de vie** pour chaque joueur.
-3. **Général libre :** chaque joueur choisit la carte qui fait office de « roi » / chef.
+2. **Points de vie** : le joueur est le **Roi** et a ses propres PV ; on perd quand ils tombent à 0 (sauf effet de Général).
+3. **Général libre** : chaque joueur choisit sa carte maîtresse.
 4. **Cartes autonomes :** une fois posée, une carte joue seule son tour selon sa **personnalité** (sauf indication contraire sur la carte). Le joueur **pose ses cartes puis regarde le combat** (aucune intervention directe).
 5. **Cycle d'un tour :** phase de pose → les cartes agissent → fin du tour → nouvelle phase de pose → etc.
 6. **Ordre d'action :** de gauche à droite, avec animation par action pour la lisibilité (sauf indication contraire).
@@ -36,15 +36,18 @@ Liste de départ validée. Une carte a une personnalité ; l'IA de combat de la 
 - **Une seule ligne de 7 cases** par joueur. L'ordre d'action est de gauche à droite.
 - Des **effets de case** sont possibles (ex. les 3 centrales pour les tanks, les extérieures moins ciblées). *Exemple seulement, rien de fixé.*
 
-## Hiérarchie : Général, Colonels, Lieutenants
-- Le joueur est un « shogun / roi ». Sa **carte maîtresse = le Général**. Elle a souvent un effet central sur le gameplay ou le terrain (sinon c'est une carte comme une autre).
-- **1 Général, 2 Colonels** (effets forts), **4 Lieutenants** (effets marginaux).
-- **TEMPORAIRE : n'importe quelle carte peut avoir n'importe quel grade.** On garde deux options ouvertes : (1) tout le monde peut être gradé, (2) les gradés sont une catégorie de cartes à part (plus simple à équilibrer). Décision plus tard, après tests.
-- Hautement personnalisable : le système doit rester souple.
+## Hiérarchie
+Voir [05-hierarchy.md](05-hierarchy.md). Le **Roi = le joueur**, avec son total de PV (100 à 250). Les gradés (Général, 2 Colonels, 4 Lieutenants) occupent les 7 cases et sont des cartes normales hors effets spéciaux.
+
+## Budget de stats (cible d'équilibrage de départ)
+- **≈ 20 points de stats par énergie de coût : environ 10 Attaque + 10 PV.**
+- Une carte à 5 énergie ≈ 50-60 Attaque / 50-60 PV, et tue vite.
+- PV du Roi : 100 à 250.
+*Valeurs de départ, à tester par simulation.*
 
 ## Deck, main, énergie
 - **Deck : 30 cartes. Main de départ : 7** (on jette des cartes, via l'offrande). **Pioche : 1 par tour.**
-- **Offrande :** sacrifier 1 carte = de l'énergie. Des **cartes exceptionnelles** peuvent donner plus.
+- **Offrande :** sacrifier 1 carte = de l'énergie, **1 offrande par tour** par défaut. Des **cartes exceptionnelles** (ex. Colonel : 2 énergie) donnent plus. Une exception rare peut autoriser une 2e offrande, avec contrainte forte.
 
 ## Déploiement
 - Une carte posée **agit au tour suivant** (temps de déploiement), **sauf si elle a un effet passif** qui s'applique tout de suite.
@@ -53,10 +56,10 @@ Liste de départ validée. Une carte a une personnalité ; l'IA de combat de la 
 Au-delà de PV / Attaque / Coût : race, type, élément, pouvoir, effets spéciaux (voir [02-cards.md](02-cards.md)).
 
 ## À définir
-- Condition de victoire précise : PV du Général ? du joueur ? Le Général est-il sur le terrain (occupe-t-il une case) ou à part ?
-- Où sont Colonels et Lieutenants : sur les 7 cases, ou dans des emplacements de commandement séparés ? Sont-ils dans les 30 cartes du deck ?
-- Limite d'offrandes par tour, valeur de base d'une offrande
+- **Persistance de l'énergie** (question clé, voir OPEN-QUESTIONS)
+- Règle de ciblage par défaut (les cartes peuvent-elles frapper le Roi directement ?)
 - Effets de case (à concevoir)
-- Résolution des conflits de ciblage : Fidèle sans allié, Rancunier sans attaquant, deux Fidèles qui se suivent…
-- Fin de partie, égalité, limite de tours
+- Cas limites des personnalités (voir OPEN-QUESTIONS)
+- Contre-attaque ou non, fin de partie, limite de tours
+- Les gradés sont-ils dans les 30 cartes du deck ?
 - Exemple de tour commenté
