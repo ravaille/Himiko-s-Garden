@@ -73,6 +73,35 @@ const ONI_CARDS: CardDef[] = [
   oni("giant", "Oni géant", 6, 0.5, "brave", ["samurai"]),
 ];
 
+const DEMON_GENERALS: CardDef[] = [
+  {
+    id: "gen-asmodeus",
+    name: "Asmodée, le vide",
+    cost: 7,
+    attack: 60,
+    hp: 80,
+    personality: "passive",
+    rank: "general",
+    race: "demon",
+    types: ["demon"],
+    text: "Actif dès qu'il est dans ton deck.",
+    effects: [{ on: "drawFailed", zone: "deck", replaces: "fatigue", do: [{ kind: "win" }] }],
+  },
+  {
+    id: "gen-belphegor",
+    name: "Belphégor, la faim",
+    cost: 7,
+    attack: 60,
+    hp: 80,
+    personality: "passive",
+    rank: "general",
+    race: "demon",
+    types: ["demon"],
+    text: "Actif dès qu'il est dans ton deck.",
+    effects: [{ on: "drawFailed", zone: "deck", replaces: "fatigue", do: [{ kind: "damage", to: "enemyKing", amount: 10 }] }],
+  },
+];
+
 const GENERALS: CardDef[] = [
   {
     id: "gen-shuten",
@@ -199,7 +228,7 @@ const MAGES: CardDef[] = [
   fx("archmage", "Archimage", 4, 20, 60, "passive", "human", [{ on: "spell", do: [{ kind: "draw", count: 1 }] }], { types: ["mage"], rank: "lieutenant" }),
 ];
 
-export const COLLECTION: CardDef[] = [...GENERALS, ...tagged(), ...ONI_CARDS, ...SPIRITS, ...EFFECT_CARDS, ...MAGES, ...SPELLS, ...BUILDINGS, ...DEMOLISHERS, ...SCALING];
+export const COLLECTION: CardDef[] = [...GENERALS, ...DEMON_GENERALS, ...tagged(), ...ONI_CARDS, ...SPIRITS, ...EFFECT_CARDS, ...MAGES, ...SPELLS, ...BUILDINGS, ...DEMOLISHERS, ...SCALING];
 
 export function cardById(id: string): CardDef | undefined {
   return COLLECTION.find((c) => c.id === id);

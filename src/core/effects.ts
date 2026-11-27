@@ -29,6 +29,10 @@ import type {
 /** Where an action comes from: a card or a building on the board, or a spell. */
 interface Ctx {
   side: 0 | 1;
+  /** The card the effect belongs to (a card on the board, a building, a card in the deck list, or the spell). */
+  def: CardDef;
+  /** True for effects working from the deck list rather than from the board. */
+  deck: boolean;
   slot: number;
   unit: Unit | null;
   building: Building | null;
@@ -47,6 +51,8 @@ function matches(e: Effect, c: Ctx, ev: GameEvent): boolean {
   switch (e.on) {
     case "passive":
       return false;
+    case "drawFailed":
+      return ev.type === "draw" && ev.failed && ev.side === c.side;
     case "play":
       return (ev.type === "played" || ev.type === "buildingPlaced") && ev.uid === uid;
     case "turnStart":
@@ -272,6 +278,9 @@ function apply(state: GameState, c: Ctx, action: Action, ev: GameEvent | null): 
     case "summon":
       for (let i = 0, count = action.count === undefined ? 1 : n(action.count); i < count; i++) summonUnit(state, c.side, action.card);
       return;
+    case "win":
+      if (state.winner === null) state.winner = c.side;
+      return;
     case "aura":
     case "grantType":
       return; // passive only: handled by refreshAuras
@@ -280,28 +289,42 @@ function apply(state: GameState, c: Ctx, action: Action, ev: GameEvent | null): 
 
 /** Resolves a spell's actions for `side` (the engine moves the card and emits the `spell` event). */
 export function castSpell(state: GameState, side: 0 | 1, def: CardDef, chosen: Choice | null): void {
-  const ctx: Ctx = { side, slot: -1, unit: null, building: null, spell: true, chosen };
+  const ctx: Ctx = { side, slot: -1, unit: null, building: null, spell: true, chosen, def, deck: false };
   for (const action of def.spell?.do ?? []) {
     if (state.winner !== null) return;
     apply(state, ctx, action, null);
   }
 }
 
+/** Board effects only work from the board, deck effects only from the deck list. */
+const zoneOk = (c: Ctx, e: Effect): boolean => (c.deck ? e.zone === "deck" : e.zone !== "deck");
+
+/** Does the player's side currently replace the fatigue damage (e.g. a Demon General in the deck)? */
+export function fatigueReplaced(state: GameState, side: 0 | 1): boolean {
+  return carriersOf(state, null).some(
+    (c) => c.side === side && (c.def.effects ?? []).some((e) => e.replaces === "fatigue" && e.on === "drawFailed" && zoneOk(c, e) && holds(state, c, e.if)),
+  );
+}
+
 /** Every card and building that carries effects, in resolution order (active player first, left to right). */
 function carriersOf(state: GameState, ev: GameEvent | null): Ctx[] {
   const out: Ctx[] = [];
   const order: (0 | 1)[] = state.current === 0 ? [0, 1] : [1, 0];
-  const base = (side: 0 | 1, slot: number) => ({ side, slot, spell: false, chosen: null });
+  const base = (side: 0 | 1, slot: number) => ({ side, slot, spell: false, chosen: null, deck: false });
   for (const side of order) {
     const p = state.players[side];
     for (let slot = 0; slot < BOARD_SIZE; slot++) {
       const unit = p.board[slot];
-      if (unit) out.push({ ...base(side, slot), unit, building: null });
+      if (unit) out.push({ ...base(side, slot), unit, building: null, def: unit.def });
       // A card that just died is already off the board but must still resolve its own "death" effects.
-      else if (ev?.type === "died" && ev.side === side && ev.slot === slot) out.push({ ...base(side, slot), unit: ev.unit, building: null });
+      else if (ev?.type === "died" && ev.side === side && ev.slot === slot) out.push({ ...base(side, slot), unit: ev.unit, building: null, def: ev.unit.def });
       const building = p.buildings[slot];
-      if (building) out.push({ ...base(side, slot), unit: null, building });
-      else if (ev?.type === "buildingDestroyed" && ev.side === side && ev.slot === slot) out.push({ ...base(side, slot), unit: null, building: ev.building });
+      if (building) out.push({ ...base(side, slot), unit: null, building, def: building.def });
+      else if (ev?.type === "buildingDestroyed" && ev.side === side && ev.slot === slot) out.push({ ...base(side, slot), unit: null, building: ev.building, def: ev.building.def });
+    }
+    // Cards of the deck list whose effects work from the deck, wherever the card is right now.
+    for (const def of p.decklist) {
+      if (def.effects?.some((e) => e.zone === "deck")) out.push({ ...base(side, -1), deck: true, unit: null, building: null, def });
     }
   }
   return out;
@@ -310,12 +333,13 @@ function carriersOf(state: GameState, ev: GameEvent | null): Ctx[] {
 /** The event-bus handler: lets every card and building react to `ev`. */
 function runEffects(state: GameState, ev: GameEvent): void {
   for (const c of carriersOf(state, ev)) {
-    const effects = (c.unit ?? c.building)!.def.effects;
+    const effects = c.def.effects;
     if (!effects) continue;
     for (const e of effects) {
       if (state.winner !== null) return;
+      if (!zoneOk(c, e)) continue;
       const p = state.players[c.side];
-      const alive = c.unit ? p.board[c.slot] === c.unit : p.buildings[c.slot] === c.building;
+      const alive = c.deck || (c.unit ? p.board[c.slot] === c.unit : p.buildings[c.slot] === c.building);
       if (!alive && e.on !== "death") continue;
       if (matches(e, c, ev) && holds(state, c, e.if)) for (const action of e.do) apply(state, c, action, ev);
     }
@@ -328,8 +352,8 @@ function runEffects(state: GameState, ev: GameEvent): void {
  */
 export function refreshAuras(state: GameState): void {
   const all = ([0, 1] as const).flatMap((side) => units(state, side));
-  const carriers = carriersOf(state, null).filter((c) => (c.unit ?? c.building)!.def.effects?.some((e) => e.on === "passive"));
-  const passives = (c: Ctx) => ((c.unit ?? c.building)!.def.effects ?? []).filter((e) => e.on === "passive" && holds(state, c, e.if));
+  const carriers = carriersOf(state, null).filter((c) => c.def.effects?.some((e) => e.on === "passive"));
+  const passives = (c: Ctx) => (c.def.effects ?? []).filter((e) => e.on === "passive" && zoneOk(c, e) && holds(state, c, e.if));
 
   const types = new Map<Unit, string[]>();
   for (const c of carriers) {

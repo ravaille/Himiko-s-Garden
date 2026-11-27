@@ -1,4 +1,4 @@
-import { castSpell, refreshAuras } from "./effects";
+import { castSpell, fatigueReplaced, refreshAuras } from "./effects";
 import { emit } from "./events";
 import { nextRandom, shuffle } from "./rng";
 import type { Building, CardDef, Choice, Config, GameState, Keywords, Order, PlayerState, Target, Unit } from "./types";
@@ -20,6 +20,7 @@ function newPlayer(deck: CardDef[], state: { rngState: number }, cfg: Config): P
   return {
     kingHp: cfg.kingHp,
     deck: shuffled.slice(cfg.handSize),
+    decklist: deck.slice(),
     hand: shuffled.slice(0, cfg.handSize),
     graveyard: [],
     fatigued: false,
@@ -448,8 +449,11 @@ export function drawCard(state: GameState, side: 0 | 1): boolean {
     return true;
   }
   p.fatigued = true;
-  p.kingHp -= FATIGUE_DAMAGE;
-  if (p.kingHp <= 0 && state.winner === null) state.winner = side === 0 ? 1 : 0;
+  // Some effects (Demon General) replace the usual loss of king HP.
+  if (!fatigueReplaced(state, side)) {
+    p.kingHp -= FATIGUE_DAMAGE;
+    if (p.kingHp <= 0 && state.winner === null) state.winner = side === 0 ? 1 : 0;
+  }
   emit(state, { type: "draw", side, failed: true });
   return false;
 }

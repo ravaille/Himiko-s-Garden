@@ -15,6 +15,7 @@ const TRIGGER: Record<Trigger, string> = {
   anySpell: "Quand un sort est lancé",
   slotAttacked: "Quand cette case est attaquée",
   passive: "Passif",
+  drawFailed: "Quand ta pioche est vide",
 };
 
 const SELECTOR: Record<Selector, string> = {
@@ -91,6 +92,8 @@ function actionText(a: Action): string {
       return `pioche ${amountText(a.count)}`;
     case "energy":
       return `+${amountText(a.amount)}⚡ ce tour`;
+    case "win":
+      return "tu gagnes la partie";
   }
 }
 
@@ -107,7 +110,7 @@ export function effectLines(def: CardDef): string[] {
     const first = def.spell.target ? who[def.spell.target] : "Se joue n'importe où.";
     lines.push(`${first} ${def.spell.do.map(actionText).join(", ")}.`);
   }
-  return lines.concat((def.effects ?? []).map((e: Effect) => `${TRIGGER[e.on]}${e.if?.length ? ` (si ${e.if.map(conditionText).join(" et ")})` : ""} : ${e.do.map(actionText).join(", ")}.`));
+  return lines.concat((def.effects ?? []).map((e: Effect) => `${e.zone === "deck" ? "Depuis le deck · " : ""}${TRIGGER[e.on]}${e.replaces === "fatigue" ? " (au lieu de perdre 10 PV)" : ""}${e.if?.length ? ` (si ${e.if.map(conditionText).join(" et ")})` : ""} : ${e.do.map(actionText).join(", ")}.`));
 }
 
 /** Display text of the keywords a card has. */

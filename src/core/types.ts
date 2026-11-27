@@ -50,6 +50,7 @@ export type Trigger =
   | "spell" // when its owner casts a spell
   | "anySpell" // when anyone casts a spell
   | "slotAttacked" // when an enemy attacks this slot (buildings)
+  | "drawFailed" // when its owner has to draw from an empty deck
   | "passive"; // always on: recomputed continuously (auras), never "fires"
 
 /** Who an action applies to, relative to the card carrying the effect. */
@@ -127,7 +128,9 @@ export type Action =
   | { kind: "summon"; card: CardDef; count?: Amount }
   | { kind: "draw"; count: Amount }
   /** Temporary energy for this turn. */
-  | { kind: "energy"; amount: Amount };
+  | { kind: "energy"; amount: Amount }
+  /** The effect's owner wins the duel on the spot. */
+  | { kind: "win" };
 
 /** What a spell asks the player to pick when it is cast (none = it can be dropped on any slot). */
 /** enemyAny = an enemy card, an enemy building or the enemy king (spells may hit buildings unless a card says otherwise). */
@@ -148,6 +151,13 @@ export interface Effect {
   on: Trigger;
   /** The effect only happens (or, for passives, only applies) while all of these hold. */
   if?: Condition[];
+  /**
+   * Where the card must be for the effect to work: "board" (default) or "deck": active as soon as the card is part of
+   * the player's deck, wherever it currently is (docs/design/07: Demon General).
+   */
+  zone?: "board" | "deck";
+  /** The effect replaces a default rule: "fatigue" = the king no longer loses 10 HP when drawing from an empty deck. */
+  replaces?: "fatigue";
   do: Action[];
 }
 
@@ -227,6 +237,8 @@ export interface Unit {
 export interface PlayerState {
   kingHp: number;
   deck: CardDef[];
+  /** The cards the deck started with (for effects that work "from the deck"). */
+  decklist: CardDef[];
   hand: CardDef[];
   /** Dead and sacrificed cards. */
   graveyard: CardDef[];

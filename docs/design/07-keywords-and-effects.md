@@ -133,4 +133,12 @@ Le **Gardien** dévie même vers un Spectral (l'IA frappe bêtement le Gardien s
 - **Types accordés** (`grantType`) : « toutes vos cartes comptent comme [samourai] » ; accordés **avant** les filtres des autres auras, et comptés par les mesures.
 - Le bonus d'un passif est du vrai stat : utilisé par le combat, affiché en bleu sur la carte.
 - Les Généraux Shuten (Oni +20/+10) et Shogun (tous samouraï, +5 ATK aux samouraï) utilisent maintenant leurs effets réels.
-- **Pas encore** : le Général Démon (effet actif depuis le **deck**, victoire à la pioche vide), le renvoi de 10 % du Général Samouraï, les équipements comptés par le Ronin, le Professeur (choix en pleine pose), les durées limitées.
+- **Pas encore** : le renvoi de 10 % du Général Samouraï, les équipements comptés par le Ronin, le Professeur (choix en pleine pose), les durées limitées.
+
+## Effets depuis le deck : Général Démon (étape 7, 2026-11-27)
+- Un effet peut avoir `zone: "deck"` : il est **actif dès que la carte fait partie du deck de départ**, où qu'elle soit (pioche, main, terrain, cimetière). Les effets sans zone ne marchent que depuis le terrain (et inversement).
+- Nouveau déclencheur **« quand ta pioche est vide »** (chaque pioche ratée) et nouvelle propriété **`replaces: "fatigue"`** : l'effet **remplace** la perte de 10 PV du Roi.
+- Nouvelle action **`win`** : le propriétaire gagne sur-le-champ.
+- **Deux versions de Général Démon** (deux raretés à prévoir) : *Asmodée, le vide* (**instantané** : à la première pioche ratée, tu gagnes) et *Belphégor, la faim* (**dégâts** : à chaque pioche ratée, l'adversaire perd 10 PV **au lieu de toi**).
+- Si les deux joueurs en ont un, celui dont la pioche se vide **le premier** en profite. Sans Démon, la pioche vide coûte toujours 10 PV.
+- Les passifs peuvent aussi venir du deck.
