@@ -1,4 +1,4 @@
-import type { CardDef, Personality, Race, Rank } from "../core/types";
+import type { CardDef, Keywords, Personality, Race, Rank } from "../core/types";
 import { TEST_POOL } from "./cards";
 
 /**
@@ -34,8 +34,20 @@ const TAGS: Record<string, { race: Race; types?: string[]; rank?: Rank }> = {
   "c6-colossus": { race: "robot" },
 };
 
+/** Keywords given to a few test cards so the engine can be tried in real duels. */
+const KEYWORDS: Record<string, Keywords> = {
+  "c1-scout": { haste: true },
+  "c2-kunoichi": { haste: true },
+  "c2-samurai": { bushido: true },
+  "c3-oni": { multihit: 1 },
+  "c4-ronin": { piercing: true },
+  "c6-demon": { lifesteal: true },
+  "c6-tengu": { regen: 10 },
+  "c5-shadow": { haste: true },
+};
+
 function tagged(): CardDef[] {
-  return TEST_POOL.map((c) => ({ ...c, ...TAGS[c.id] }));
+  return TEST_POOL.map((c) => ({ ...c, ...TAGS[c.id], ...(KEYWORDS[c.id] ? { keywords: KEYWORDS[c.id] } : {}) }));
 }
 
 function oni(id: string, name: string, cost: number, share: number, personality: Personality, types: string[]): CardDef {
@@ -89,7 +101,14 @@ const GENERALS: CardDef[] = [
   },
 ];
 
-export const COLLECTION: CardDef[] = [...GENERALS, ...tagged(), ...ONI_CARDS];
+const SPIRITS: CardDef[] = [
+  { id: "yurei-wisp", name: "Feu follet", cost: 1, attack: 8, hp: 6, personality: "brave", race: "yurei", types: ["spectral"], keywords: { ghostly: true } },
+  { id: "yurei-lantern", name: "Lanterne hantée", cost: 2, attack: 14, hp: 10, personality: "passive", race: "yurei", types: ["spectral"], keywords: { ghostly: true, regen: 10 } },
+  { id: "yurei-widow", name: "Veuve spectrale", cost: 3, attack: 24, hp: 16, personality: "assassin", race: "yurei", types: ["spectral"], keywords: { ghostly: true } },
+  { id: "beast-fox", name: "Renard à deux queues", cost: 2, attack: 24, hp: 16, personality: "brave", race: "beast", keywords: { multihit: 1 } },
+];
+
+export const COLLECTION: CardDef[] = [...GENERALS, ...tagged(), ...ONI_CARDS, ...SPIRITS];
 
 export function cardById(id: string): CardDef | undefined {
   return COLLECTION.find((c) => c.id === id);

@@ -77,3 +77,15 @@ Exemple de Romain : **+10/+10 pour toute unité posée sur la case centrale, mai
 - **Deux Démons** : deux versions à deux raretés : *instantanée* (le premier qui vide son deck **gagne**) et *dégâts* (inflige des PV à l'autre). La version instantanée est tenable car les parties sont rapides (deck de 30 ou 40).
 - **Pioche vide avec Démon** : s'applique à **chaque pioche ratée**.
 - **Chaînes d'effets** : pas de limite de conception ; **garde-fou technique ≈ 200 effets** par résolution (au-delà = boucle infinie, on coupe).
+
+## Mots-clés codés (étape 2 du moteur, 2026-11-27)
+| Mot-clé | Comportement exact | Paramètre |
+|---|---|---|
+| **Haste** | Agit dès le tour où elle est posée. | : |
+| **Bushido** | Ne frappe que la carte **en face**, sinon le Roi (les cartes du centre sont ignorées). **Tuer une cible que personne d'autre n'a touchée soigne entièrement la carte.** Les bonus de stats sont dans les chiffres de la carte. | : |
+| **Ghostly** | Invisible aux attaques normales (elles passent à la cible suivante, puis au Roi). Ciblable par les autres Ghostly et par les sorts. | : |
+| **Multihit** | Frappe de nouveau. Même cible ; si elle est morte, la suivante de sa liste ; liste vide → le Roi. | nb de frappes en plus (1 = double frappe) |
+| **Perforant** | Dégâts en trop → carte suivante, puis Roi. | : |
+| **Vol de vie** | Se soigne de la moitié des dégâts réellement infligés (jamais au-delà de ses PV max). | : |
+| **Régénération** | Soigne N PV au début du tour de son propriétaire. | **N** (Régén. 10, Régén. 20…) |
+Le **Gardien** ne dévie pas vers un Spectral que l'attaquant ne peut pas cibler.

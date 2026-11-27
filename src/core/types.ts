@@ -16,6 +16,24 @@ export type Rank = "general" | "colonel" | "lieutenant";
 /** Races (docs/design/02-cards.md). Types are free-form strings (open list, docs/design/09-archetypes.md). */
 export type Race = "human" | "henge" | "yurei" | "tsukumogami" | "oni" | "beast" | "demon" | "robot";
 
+/** Recurring behaviours (docs/design/07-keywords-and-effects.md). Values are parameters where noted. */
+export interface Keywords {
+  /** Acts the turn it is placed (ignores the deployment delay). */
+  haste?: boolean;
+  /** Only strikes the facing card (else the king). A clean kill heals it fully. */
+  bushido?: boolean;
+  /** Only targetable by other ghostly cards (and by spells). */
+  ghostly?: boolean;
+  /** Extra hits per attack: multihit 1 = strikes twice. */
+  multihit?: number;
+  /** Excess damage carries over to the next target, then the king. */
+  piercing?: boolean;
+  /** Heals itself for half the damage it deals. */
+  lifesteal?: boolean;
+  /** Heals N HP at the start of its owner's turn. */
+  regen?: number;
+}
+
 /** Deck constraint carried by a card (typically a General): every other card must match. */
 export interface DeckRule {
   /** Only these races are allowed in the deck. */
@@ -37,6 +55,7 @@ export interface CardDef {
   race?: Race;
   /** Archetype types, shared across races (e.g. "samurai", "mage"). */
   types?: string[];
+  keywords?: Keywords;
   /** Deck-building constraint (see docs/design/10-deckbuilding.md). */
   deckRule?: DeckRule;
   /** Energy gained when sacrificed. Defaults to 1. */
@@ -56,6 +75,10 @@ export interface Unit {
   /** Owner's turnsPlayed value when the unit was placed (deployment delay). */
   deployedOn: number;
   lastAttackerUid: number | null;
+  /** Runtime keywords (effects may give/remove some); defaults to the card's own. */
+  keywords?: Keywords;
+  /** uids of the cards that damaged this one (-1 = something else), for Bushido. */
+  touchedBy?: number[];
 }
 
 export interface PlayerState {
@@ -93,6 +116,8 @@ export type GameEvent =
   /** A card of `side` took damage. */
   | { type: "damaged"; side: 0 | 1; slot: number; uid: number; amount: number; sourceUid: number | null }
   | { type: "died"; side: 0 | 1; slot: number; uid: number; card: CardDef }
+  /** A card of `side` recovered HP. */
+  | { type: "healed"; side: 0 | 1; slot: number; uid: number; amount: number }
   /** The king of `side` took damage. */
   | { type: "kingHit"; side: 0 | 1; amount: number };
 

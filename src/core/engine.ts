@@ -1,6 +1,6 @@
 import { emit } from "./events";
 import { nextRandom, shuffle } from "./rng";
-import type { CardDef, Config, GameState, PlayerState, Target, Unit } from "./types";
+import type { CardDef, Config, GameState, Keywords, PlayerState, Target, Unit } from "./types";
 
 export const BOARD_SIZE = 7;
 export const FATIGUE_DAMAGE = 10;
@@ -64,6 +64,7 @@ export function beginTurn(state: GameState): void {
   if (state.current === 1 && p.turnsPlayed === 1) p.energy += 1;
   p.offered = false;
   emit(state, { type: "turnStart", side: state.current });
+  for (const u of p.board) if (u && kw(u).regen) healUnit(state, state.current, u, kw(u).regen!);
   if (state.turn > 0) {
     const card = p.deck.shift();
     if (card) {
@@ -120,23 +121,49 @@ export function playCard(state: GameState, handIndex: number, slot: number): voi
   emit(state, { type: "played", side: state.current, slot, uid: unit.uid });
 }
 
+// ---------------------------------------------------------------- keywords
+
+/** The keywords a unit has right now. */
+export const kw = (u: Unit): Keywords => u.keywords ?? u.def.keywords ?? {};
+
+/** Deployment delay: a unit placed this turn does not act, unless it has Haste. */
+export const isDeploying = (p: PlayerState, u: Unit): boolean => u.deployedOn >= p.turnsPlayed && !kw(u).haste;
+
+/** Ghostly units can only be targeted by other ghostly units. */
+const canTarget = (attacker: Unit, victim: Unit): boolean => !kw(victim).ghostly || !!kw(attacker).ghostly;
+
+/** Heals a unit up to its max HP; returns the HP actually recovered. */
+export function healUnit(state: GameState, side: 0 | 1, unit: Unit, amount: number): number {
+  const slot = state.players[side].board.indexOf(unit);
+  const real = Math.min(amount, unit.maxHp - unit.hp);
+  if (slot < 0 || real <= 0) return 0;
+  unit.hp += real;
+  emit(state, { type: "healed", side, slot, uid: unit.uid, amount: real });
+  return real;
+}
+
 // ---------------------------------------------------------------- targeting
 
 const isCoward = (u: Unit) => u.def.personality === "coward";
 
-/** Cards an attacker at `slot` can reach by default: facing card, then centre cards. */
-export function reachableCards(slot: number, enemy: PlayerState): Extract<Target, { kind: "unit" }>[] {
-  const out: Extract<Target, { kind: "unit" }>[] = [];
+type UnitTarget = Extract<Target, { kind: "unit" }>;
+
+/**
+ * Cards an attacker at `slot` can reach by default: facing card, then centre cards.
+ * With `attacker`: ghostly enemies are skipped (unless it is ghostly too) and Bushido only sees the facing card.
+ */
+export function reachableCards(slot: number, enemy: PlayerState, attacker?: Unit): UnitTarget[] {
+  const out: UnitTarget[] = [];
   const seen = new Set<number>();
   const add = (s: number) => {
     const unit = enemy.board[s];
-    if (unit && !seen.has(s)) {
+    if (unit && !seen.has(s) && (!attacker || canTarget(attacker, unit))) {
       seen.add(s);
       out.push({ kind: "unit", slot: s, unit });
     }
   };
   add(slot);
-  for (const c of CENTER_SLOTS) add(c);
+  if (!(attacker && kw(attacker).bushido)) for (const c of CENTER_SLOTS) add(c);
   return preferNonCowards(out);
 }
 
@@ -161,7 +188,7 @@ function chooseTarget(
   acted: Target[],
 ): Target | null {
   const enemy = state.players[pi === 0 ? 1 : 0];
-  const cards = reachableCards(slot, enemy);
+  const cards = reachableCards(slot, enemy, attacker);
   const atk = attacker.attack;
 
   const defensive = (): Target | null => {
@@ -174,7 +201,7 @@ function chooseTarget(
     if (attacker.lastAttackerUid !== null) {
       for (let s = 0; s < BOARD_SIZE; s++) {
         const u = enemy.board[s];
-        if (u && u.uid === attacker.lastAttackerUid) return { kind: "unit", slot: s, unit: u };
+        if (u && u.uid === attacker.lastAttackerUid && canTarget(attacker, u)) return { kind: "unit", slot: s, unit: u };
       }
     }
     return defensive();
@@ -189,11 +216,11 @@ function chooseTarget(
     case "strategist": // provisional: the player's order is not implemented yet
       return cards.length > 0 ? (beefiest(cards) ?? KING) : KING;
     case "berserk": {
-      const all: Extract<Target, { kind: "unit" }>[] = [];
+      const all: UnitTarget[] = [];
       enemy.board.forEach((unit, s) => {
-        if (unit) all.push({ kind: "unit", slot: s, unit });
+        if (unit && canTarget(attacker, unit)) all.push({ kind: "unit", slot: s, unit });
       });
-      const pool = preferNonCowards(all);
+      const pool = kw(attacker).bushido ? cards : preferNonCowards(all);
       if (pool.length === 0) return KING;
       return pool[Math.floor(nextRandom(state) * pool.length)];
     }
@@ -204,7 +231,7 @@ function chooseTarget(
     case "faithful": {
       for (const t of acted) {
         if (t.kind === "king") return t;
-        if (enemy.board[t.slot] === t.unit) return t;
+        if (enemy.board[t.slot] === t.unit && canTarget(attacker, t.unit)) return t;
       }
       return vengeful();
     }
@@ -216,38 +243,89 @@ function chooseTarget(
   }
 }
 
-/** Guardian: adjacent allies of a guardian are shielded by it. */
-function redirectToGuardian(enemy: PlayerState, t: Target): Target {
+/** Guardian: adjacent allies of a guardian are shielded by it (unless it cannot be targeted by the attacker). */
+function redirectToGuardian(enemy: PlayerState, t: Target, attacker: Unit): Target {
   if (t.kind !== "unit" || t.unit.def.personality === "guardian") return t;
   for (const s of [t.slot - 1, t.slot + 1]) {
     const u = enemy.board[s];
-    if (u && u.def.personality === "guardian") return { kind: "unit", slot: s, unit: u };
+    if (u && u.def.personality === "guardian" && canTarget(attacker, u)) return { kind: "unit", slot: s, unit: u };
   }
   return t;
 }
 
-function hit(state: GameState, pi: 0 | 1, from: number, attacker: Unit, t: Target): void {
+const isAlive = (enemy: PlayerState, t: Target): boolean => t.kind === "king" || enemy.board[t.slot] === t.unit;
+
+/** Next target when the current one is gone (Multihit, Piercing): the attacker's usual pick, else the list, else the king. */
+function nextTarget(state: GameState, pi: 0 | 1, slot: number, attacker: Unit): Target {
+  const enemy = state.players[pi === 0 ? 1 : 0];
+  return chooseTarget(state, pi, slot, attacker, []) ?? reachableCards(slot, enemy, attacker)[0] ?? KING;
+}
+
+interface Blow {
+  killed: boolean;
+  /** Damage beyond the target's remaining HP. */
+  excess: number;
+}
+
+/** One instance of damage from `attacker` to `t`; handles death, Lifesteal and Bushido. */
+function deal(state: GameState, pi: 0 | 1, from: number, attacker: Unit, t: Target, amount: number): Blow {
   const foe = pi === 0 ? 1 : 0;
   const enemy = state.players[foe];
-  const damage = attacker.attack;
-  state.stats.attacks++;
-  emit(state, { type: "attack", side: pi, slot: from, uid: attacker.uid, target: t.kind === "king" ? "king" : t.slot });
   if (t.kind === "king") {
-    enemy.kingHp -= damage;
-    state.events.push({ side: pi, from, to: "king", damage, killed: false });
-    emit(state, { type: "kingHit", side: foe, amount: damage });
+    enemy.kingHp -= amount;
+    state.events.push({ side: pi, from, to: "king", damage: amount, killed: false });
+    emit(state, { type: "kingHit", side: foe, amount });
     if (enemy.kingHp <= 0 && state.winner === null) state.winner = pi;
-    return;
+    if (kw(attacker).lifesteal) healUnit(state, pi, attacker, Math.floor(amount / 2));
+    return { killed: false, excess: 0 };
   }
-  t.unit.hp -= damage;
-  t.unit.lastAttackerUid = attacker.uid;
-  emit(state, { type: "damaged", side: foe, slot: t.slot, uid: t.unit.uid, amount: damage, sourceUid: attacker.uid });
-  const killed = t.unit.hp <= 0;
-  state.events.push({ side: pi, from, to: t.slot, damage, killed });
-  if (killed && enemy.board[t.slot] === t.unit) {
+  const victim = t.unit;
+  const before = victim.hp;
+  victim.hp -= amount;
+  victim.lastAttackerUid = attacker.uid;
+  (victim.touchedBy ??= []).push(attacker.uid);
+  emit(state, { type: "damaged", side: foe, slot: t.slot, uid: victim.uid, amount, sourceUid: attacker.uid });
+  const dealt = Math.min(amount, before);
+  const killed = victim.hp <= 0;
+  state.events.push({ side: pi, from, to: t.slot, damage: amount, killed });
+  if (kw(attacker).lifesteal) healUnit(state, pi, attacker, Math.floor(dealt / 2));
+  if (killed && enemy.board[t.slot] === victim) {
     enemy.board[t.slot] = null;
-    enemy.graveyard.push(t.unit.def);
-    emit(state, { type: "died", side: foe, slot: t.slot, uid: t.unit.uid, card: t.unit.def });
+    enemy.graveyard.push(victim.def);
+    emit(state, { type: "died", side: foe, slot: t.slot, uid: victim.uid, card: victim.def });
+    // Bushido: a clean kill (nobody else touched the target) heals the attacker fully.
+    if (kw(attacker).bushido && victim.touchedBy!.every((id) => id === attacker.uid)) {
+      healUnit(state, pi, attacker, attacker.maxHp);
+    }
+  }
+  return { killed, excess: killed ? amount - before : 0 };
+}
+
+/** One strike: the blow, plus Piercing overflow to the next targets. */
+function strike(state: GameState, pi: 0 | 1, from: number, attacker: Unit, first: Target): void {
+  state.stats.attacks++;
+  emit(state, { type: "attack", side: pi, slot: from, uid: attacker.uid, target: first.kind === "king" ? "king" : first.slot });
+  let target = first;
+  let amount = attacker.attack;
+  for (;;) {
+    const blow = deal(state, pi, from, attacker, target, amount);
+    if (!kw(attacker).piercing || blow.excess <= 0 || state.winner !== null) return;
+    target = nextTarget(state, pi, from, attacker);
+    amount = blow.excess;
+  }
+}
+
+/** A unit's whole attack: first target (with Guardian redirect), then Multihit extra strikes. */
+function attackWith(state: GameState, pi: 0 | 1, slot: number, attacker: Unit, chosen: Target, acted: Target[]): void {
+  const enemy = state.players[pi === 0 ? 1 : 0];
+  const first = redirectToGuardian(enemy, chosen, attacker);
+  acted.push(first);
+  let target = first;
+  const strikes = 1 + (kw(attacker).multihit ?? 0);
+  for (let i = 0; i < strikes; i++) {
+    if (state.winner !== null) return;
+    if (i > 0 && !isAlive(enemy, target)) target = nextTarget(state, pi, slot, attacker);
+    strike(state, pi, slot, attacker, target);
   }
 }
 
@@ -255,18 +333,15 @@ function hit(state: GameState, pi: 0 | 1, from: number, attacker: Unit, t: Targe
 export function actionPhase(state: GameState): void {
   const pi = state.current;
   const me = state.players[pi];
-  const enemy = state.players[pi === 0 ? 1 : 0];
-  const acted: Target[] = [];
   state.events = [];
+  const acted: Target[] = [];
   for (let slot = 0; slot < BOARD_SIZE; slot++) {
     if (state.winner !== null) return;
     const unit = me.board[slot];
-    if (!unit || unit.deployedOn >= me.turnsPlayed) continue; // still deploying
+    if (!unit || isDeploying(me, unit)) continue;
     const chosen = chooseTarget(state, pi, slot, unit, acted);
     if (!chosen) continue;
-    const target = redirectToGuardian(enemy, chosen);
-    acted.push(target);
-    hit(state, pi, slot, unit, target);
+    attackWith(state, pi, slot, unit, chosen, acted);
   }
 }
 
@@ -281,18 +356,18 @@ export function previewTargets(
   def: CardDef,
 ): { targets: Target[]; note: string | null } {
   const enemy = state.players[pi === 0 ? 1 : 0];
-  if (def.personality === "berserk") {
+  const ghost: Unit = { uid: -1, def, attack: def.attack, maxHp: def.hp, hp: def.hp, deployedOn: 0, lastAttackerUid: null };
+  if (def.personality === "berserk" && !def.keywords?.bushido) {
     const all: Target[] = [];
     enemy.board.forEach((unit, s) => {
-      if (unit) all.push({ kind: "unit", slot: s, unit });
+      if (unit && canTarget(ghost, unit)) all.push({ kind: "unit", slot: s, unit });
     });
     return { targets: all.length > 0 ? all : [KING], note: "au hasard parmi tous les ennemis" };
   }
   if (def.personality === "passive") return { targets: [], note: "n'attaque pas" };
-  const ghost: Unit = { uid: -1, def, attack: def.attack, maxHp: def.hp, hp: def.hp, deployedOn: 0, lastAttackerUid: null };
   const chosen = chooseTarget(state, pi, slot, ghost, []);
   if (!chosen) return { targets: [], note: "n'attaquera pas (aucune cible sûre)" };
-  const final = redirectToGuardian(enemy, chosen);
+  const final = redirectToGuardian(enemy, chosen, ghost);
   const note = def.personality === "faithful" ? "dépend des alliés qui attaquent avant elle" : null;
   return { targets: [final], note };
 }

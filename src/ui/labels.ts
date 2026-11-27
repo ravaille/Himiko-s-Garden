@@ -1,4 +1,28 @@
-import type { Personality, Race, Rank } from "../core/types";
+import type { Keywords, Personality, Race, Rank } from "../core/types";
+
+/** Display text of the keywords a card has. */
+export function keywordLabels(k: Keywords | undefined): string[] {
+  if (!k) return [];
+  const out: string[] = [];
+  if (k.haste) out.push("Célérité");
+  if (k.bushido) out.push("Bushido");
+  if (k.ghostly) out.push("Spectral");
+  if (k.multihit) out.push(k.multihit === 1 ? "Double frappe" : `Frappe ×${k.multihit + 1}`);
+  if (k.piercing) out.push("Perforant");
+  if (k.lifesteal) out.push("Vol de vie");
+  if (k.regen) out.push(`Régén. (${k.regen})`);
+  return out;
+}
+
+/** One-line explanations, shown as tooltips in the deck-builder. */
+export const KEYWORD_HELP: Record<string, string> = {
+  "Célérité": "Agit dès le tour où elle est posée.",
+  Bushido: "Ne frappe que la carte en face (sinon le Roi). Tuer une cible que personne d'autre n'a touchée la soigne entièrement.",
+  Spectral: "Ne peut être ciblée que par des cartes spectrales (et par des sorts).",
+  "Double frappe": "Frappe une fois de plus.",
+  Perforant: "Les dégâts en trop passent à la carte suivante, puis au Roi.",
+  "Vol de vie": "Se soigne de la moitié des dégâts infligés.",
+};
 
 export const RACE: Record<Race, string> = {
   human: "Humain",

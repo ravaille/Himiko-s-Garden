@@ -1,9 +1,11 @@
 import type { CardDef } from "../core/types";
-import { PERSONALITY } from "./labels";
+import { PERSONALITY, keywordLabels } from "./labels";
 
 /** Rules text shown on the card. Effects will plug in here; for now: the special offering value. */
 function cardText(def: CardDef): string {
   const lines: string[] = [];
+  const kws = keywordLabels(def.keywords);
+  if (kws.length) lines.push(`<b>${kws.join(" · ")}</b>`);
   if (def.text) lines.push(def.text);
   if ((def.offering ?? 1) > 1) lines.push(`Offrande : +${def.offering}⚡`);
   return lines.join(" ");

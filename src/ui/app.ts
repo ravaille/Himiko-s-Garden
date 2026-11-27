@@ -1,6 +1,6 @@
 import { poseAI } from "../core/ai";
 import { buildRandomDeck } from "../core/deck";
-import { BOARD_SIZE, actionPhase, beginTurn, endTurn, newGame, offer, playCard, previewTargets } from "../core/engine";
+import { BOARD_SIZE, actionPhase, beginTurn, endTurn, isDeploying, newGame, offer, playCard, previewTargets } from "../core/engine";
 import type { CardDef, GameState } from "../core/types";
 import { TEST_POOL } from "../data/cards";
 import { cardHtml } from "./card";
@@ -84,7 +84,7 @@ function boardHtml(side: 0 | 1): string {
   for (let i = 0; i < BOARD_SIZE; i++) {
     const u = p.board[i];
     const centre = i >= 2 && i <= 4 ? " centre" : "";
-    const wait = u && u.deployedOn >= p.turnsPlayed ? " deploying" : "";
+    const wait = u && isDeploying(p, u) ? " deploying" : "";
     cells += `<div class="slot${centre}${wait}" data-side="${side}" data-slot="${i}">${u ? cardHtml(u.def, u.hp, u.attack, u.maxHp) : ""}${wait ? '<span class="zzz">💤</span>' : ""}</div>`;
   }
   return `<div class="board">${cells}</div>`;
@@ -202,7 +202,7 @@ function onHover(e: MouseEvent): void {
   let who = "";
   if (targets.length === 1) who = targets[0].kind === "king" ? "frappera le Roi adverse" : `frappera ${targets[0].unit.def.name}`;
   const hint = root.querySelector<HTMLElement>("#hint");
-  if (hint) hint.textContent = `🎯 ${def.name} : ${note ?? (who || "n'attaquera pas")} · agira au prochain tour`;
+  if (hint) hint.textContent = `🎯 ${def.name} : ${note ?? (who || "n'attaquera pas")} · ${def.keywords?.haste ? "agira dès ce tour" : "agira au prochain tour"}`;
 }
 
 // ---------------------------------------------------------------- interaction
@@ -271,7 +271,7 @@ function onClick(e: MouseEvent): void {
     try {
       const c = me.hand[selected];
       playCard(game, selected, Number(slotEl.dataset.slot));
-      message = `${c.name} est posée. Elle agira au prochain tour.`;
+      message = `${c.name} est posée. ${c.keywords?.haste ? "Elle agit dès ce tour (Célérité)." : "Elle agira au prochain tour."}`;
       selected = null;
     } catch (err) {
       message = `⚠️ ${(err as Error).message === "Not enough energy" ? "Pas assez d'énergie." : "Case indisponible."}`;
