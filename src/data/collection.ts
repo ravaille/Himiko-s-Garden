@@ -4,7 +4,7 @@ import { TEST_POOL } from "./cards";
 /**
  * Playable collection for deck-building tests (debug mode: everything is unlocked, docs/design/10-deckbuilding.md).
  * Built on the placeholder TEST_POOL (stats only) plus race/type tags, officers and Oni cards.
- * Generals have no effect yet (texts marked "(effet à venir)"); the `fx-` cards use the effects engine.
+ * Generals use passive effects; the `fx-` cards use triggered effects, conditions and scaling.
  */
 
 const TAGS: Record<string, { race: Race; types?: string[]; rank?: Rank }> = {
@@ -85,7 +85,8 @@ const GENERALS: CardDef[] = [
     race: "oni",
     types: ["samurai"],
     deckRule: { races: ["oni"] },
-    text: "Deck 100 % Oni. Oni +20⚔/+10♥ (effet à venir).",
+    text: "Deck 100 % Oni.",
+    effects: [{ on: "passive", do: [{ kind: "aura", to: "allies", where: { race: "oni" }, attack: 20, hp: 10 }] }],
   },
   {
     id: "gen-shogun",
@@ -97,7 +98,10 @@ const GENERALS: CardDef[] = [
     rank: "general",
     race: "human",
     types: ["samurai", "daimyo"],
-    text: "Aucune contrainte de deck (effet à venir).",
+    effects: [
+      { on: "passive", do: [{ kind: "grantType", to: "allies", type: "samurai" }] },
+      { on: "passive", do: [{ kind: "aura", to: "allies", where: { type: "samurai" }, attack: 5 }] },
+    ],
   },
 ];
 
@@ -181,12 +185,21 @@ const DEMOLISHERS: CardDef[] = [
   sp("demolition", "Démolition", 2, { target: "enemyBuilding", do: [{ kind: "destroy", to: "chosen" }] }),
 ];
 
+const SCALING: CardDef[] = [
+  fx("ronin", "Ronin solitaire", 2, 14, 14, "vengeful", "human", [{ on: "passive", if: [{ of: { of: "allyUnits" }, op: "<=", value: 3 }], do: [{ kind: "aura", to: "self", attack: 15, hp: 10 }] }], { types: ["ronin"] }),
+  fx("student", "Élève", 3, 18, 24, "brave", "human", [{ on: "passive", do: [{ kind: "aura", to: "self", attack: { per: 10, of: { of: "allyUnits", filter: { type: "student" }, others: true } } }] }], { types: ["student"] }),
+  fx("monitor", "Délégué", 2, 10, 16, "brave", "human", [{ on: "passive", do: [{ kind: "aura", to: "self", attack: { per: 5, of: { of: "allyUnits", filter: { type: "student" }, others: true } } }] }], { types: ["student"] }),
+  fx("ghoul", "Goule", 2, 10, 14, "brave", "demon", [{ on: "passive", do: [{ kind: "aura", to: "self", attack: { per: 3, of: { of: "ownGraveyard" } } }] }], { types: ["ghoul"] }),
+  fx("avenger-king", "Vengeur du Roi", 3, 20, 24, "brave", "human", [{ on: "passive", if: [{ of: { of: "ownKingPct" }, op: "<=", value: 50 }], do: [{ kind: "aura", to: "self", attack: 20 }] }]),
+  fx("mirror", "Oni miroir", 3, 14, 44, "guardian", "oni", [{ on: "damaged", do: [{ kind: "damage", to: "source", amount: { pct: 25, of: "eventDamage" } }] }], { types: ["guard"] }),
+];
+
 const MAGES: CardDef[] = [
   fx("apprentice", "Apprentie mage", 1, 8, 12, "passive", "human", [{ on: "spell", do: [{ kind: "damage", to: "enemyKing", amount: 5 }] }], { types: ["mage"] }),
   fx("archmage", "Archimage", 4, 20, 60, "passive", "human", [{ on: "spell", do: [{ kind: "draw", count: 1 }] }], { types: ["mage"], rank: "lieutenant" }),
 ];
 
-export const COLLECTION: CardDef[] = [...GENERALS, ...tagged(), ...ONI_CARDS, ...SPIRITS, ...EFFECT_CARDS, ...MAGES, ...SPELLS, ...BUILDINGS, ...DEMOLISHERS];
+export const COLLECTION: CardDef[] = [...GENERALS, ...tagged(), ...ONI_CARDS, ...SPIRITS, ...EFFECT_CARDS, ...MAGES, ...SPELLS, ...BUILDINGS, ...DEMOLISHERS, ...SCALING];
 
 export function cardById(id: string): CardDef | undefined {
   return COLLECTION.find((c) => c.id === id);

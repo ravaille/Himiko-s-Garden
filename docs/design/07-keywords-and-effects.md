@@ -124,3 +124,13 @@ Le **Gardien** dévie même vers un Spectral (l'IA frappe bêtement le Gardien s
 - Marqueur 🎯 rouge sur la cible ; anneau jaune sur le Stratège en cours d'ordre.
 - Le **Gardien** dévie toujours l'attaque ordonnée ; Perforant/Multihit/Bushido fonctionnent comme d'habitude.
 - L'IA adverse ne donne pas d'ordre : ses Stratèges agissent en Brave.
+
+## Conditions, scaling et passifs (étape 6, 2026-11-27)
+- **Condition** (`if`, toutes requises) : « mesure » + comparaison (`<`, `<=`, `>`, `>=`, `==`) + valeur. Un effet déclenché n'a lieu que si elles tiennent ; un passif ne s'applique que tant qu'elles tiennent.
+- **Mesures** (avec filtre race / type / grade / coût, et option « autres » qui exclut la carte elle-même) : cartes alliées, cartes ennemies, bâtiments alliés/ennemis, cimetière (le sien / adverse), main, pioche, PV du Roi (brut ou en % des PV de départ, pouvant dépasser 100 %).
+- **Montants** : un nombre, ou `base + par × (mesure)`, ou un **% des dégâts reçus** (renvoi de dégâts). Utilisables pour dégâts, soin, bonus de stats, pioche, énergie, invocation.
+- **Passifs** (`on: "passive"`) : bonus de stats **dynamiques** (« aura ») recalculés après chaque événement, sur soi, les alliés, les voisins ou les ennemis (malus possibles), avec filtre. Ils suivent le plateau : plus d'élèves, plus d'attaque ; la source meurt, le bonus disparaît (les PV bonus partent aussi, sans tuer).
+- **Types accordés** (`grantType`) : « toutes vos cartes comptent comme [samourai] » ; accordés **avant** les filtres des autres auras, et comptés par les mesures.
+- Le bonus d'un passif est du vrai stat : utilisé par le combat, affiché en bleu sur la carte.
+- Les Généraux Shuten (Oni +20/+10) et Shogun (tous samouraï, +5 ATK aux samouraï) utilisent maintenant leurs effets réels.
+- **Pas encore** : le Général Démon (effet actif depuis le **deck**, victoire à la pioche vide), le renvoi de 10 % du Général Samouraï, les équipements comptés par le Ronin, le Professeur (choix en pleine pose), les durées limitées.

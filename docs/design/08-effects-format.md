@@ -35,6 +35,9 @@ Résolution en chaîne sans limite de conception ; coupure technique à ≈ 200 
 | **Sort : Sceau** (invocation) | à la pose | une case libre existe | case libre | poser un bâtiment-jeton « Torii » (effet de case) ; échoue si plein | : |
 | **Multihit perforant** | quand elle attaque | : | cible 1 puis cible suivante | frappe 2 fois ; excédent au-delà | : |
 
+## Conditions et scaling : codés (voir 07)
+Conditions, montants à échelle, passifs/auras et types accordés sont implémentés (étape 6).
+
 ## Règles de résolution (validées par Romain, 2026-11-27)
 1. **Mort et chaînes** : les effets de mort se résolvent **immédiatement**, avant que la carte suivante agisse ; les chaînes aussi (garde-fou : 200 événements par résolution).
 2. **Ordre de déclenchement simultané** : cartes du joueur dont c'est le tour (gauche → droite), puis celles de l'adversaire (gauche → droite).

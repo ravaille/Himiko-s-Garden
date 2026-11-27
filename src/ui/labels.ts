@@ -1,4 +1,4 @@
-import type { Action, CardDef, Effect, Keywords, Personality, Race, Rank, Selector, Trigger } from "../core/types";
+import type { Action, Amount, CardDef, CardFilter, Condition, Counter, Effect, Keywords, Measure, Personality, Race, Rank, Selector, Trigger } from "../core/types";
 
 const TRIGGER: Record<Trigger, string> = {
   play: "À la pose",
@@ -14,6 +14,7 @@ const TRIGGER: Record<Trigger, string> = {
   spell: "Quand tu lances un sort",
   anySpell: "Quand un sort est lancé",
   slotAttacked: "Quand cette case est attaquée",
+  passive: "Passif",
 };
 
 const SELECTOR: Record<Selector, string> = {
@@ -31,24 +32,65 @@ const SELECTOR: Record<Selector, string> = {
   slotUnit: "la carte sur cette case",
 };
 
+const COUNTER: Record<Counter, string> = {
+  allyUnits: "carte alliée",
+  enemyUnits: "carte ennemie",
+  allyBuildings: "bâtiment allié",
+  enemyBuildings: "bâtiment ennemi",
+  ownGraveyard: "carte dans ton cimetière",
+  enemyGraveyard: "carte dans le cimetière adverse",
+  ownHand: "carte dans ta main",
+  ownDeck: "carte dans ta pioche",
+  ownKingHp: "PV de ton Roi",
+  enemyKingHp: "PV du Roi adverse",
+  ownKingPct: "% de PV de ton Roi",
+  enemyKingPct: "% de PV du Roi adverse",
+};
+
+function filterText(f: CardFilter | undefined): string {
+  if (!f) return "";
+  const parts = [f.type ? `[${f.type}]` : "", f.race ? RACE[f.race] : "", f.rank ? RANK[f.rank] : "", f.maxCost !== undefined ? `coût ≤ ${f.maxCost}` : "", f.minCost !== undefined ? `coût ≥ ${f.minCost}` : ""];
+  return parts.filter(Boolean).join(" ");
+}
+
+function measureText(m: Measure): string {
+  const f = filterText(m.filter);
+  return `${COUNTER[m.of]}${f ? ` ${f}` : ""}${m.others ? " (autres)" : ""}`;
+}
+
+function amountText(a: Amount): string {
+  if (typeof a === "number") return String(a);
+  if ("pct" in a) return `${a.pct} % des dégâts reçus`;
+  return `${a.base ? `${a.base} + ` : ""}${a.per} par ${measureText(a.of)}`;
+}
+
+function conditionText(c: Condition): string {
+  return `${measureText(c.of)} ${c.op === "<=" ? "≤" : c.op === ">=" ? "≥" : c.op === "==" ? "=" : c.op} ${c.value}`;
+}
+
 function actionText(a: Action): string {
   switch (a.kind) {
     case "damage":
-      return `${a.amount} dégâts à ${SELECTOR[a.to]}`;
+      return `${amountText(a.amount)} dégâts à ${SELECTOR[a.to]}`;
     case "heal":
-      return `soigne ${SELECTOR[a.to]} de ${a.amount}`;
-    case "buff": {
-      const parts = [a.attack ? `${a.attack > 0 ? "+" : ""}${a.attack}⚔` : "", a.hp ? `${a.hp > 0 ? "+" : ""}${a.hp}♥` : ""].filter(Boolean);
-      return `${SELECTOR[a.to]} : ${parts.join(" ")}`;
+      return `soigne ${SELECTOR[a.to]} de ${amountText(a.amount)}`;
+    case "buff":
+    case "aura": {
+      const sign = (v: Amount | undefined, icon: string) => (v === undefined ? "" : typeof v === "number" ? `${v > 0 ? "+" : ""}${v}${icon}` : `+${amountText(v)} ${icon}`);
+      const parts = [sign(a.attack, "⚔"), sign(a.hp, "♥")].filter(Boolean);
+      const where = a.kind === "aura" && a.where ? ` ${filterText(a.where)}` : "";
+      return `${SELECTOR[a.to]}${where} : ${parts.join(" ")}`;
     }
+    case "grantType":
+      return `${SELECTOR[a.to]}${a.where ? ` ${filterText(a.where)}` : ""} comptent comme [${a.type}]`;
     case "destroy":
       return `détruit ${SELECTOR[a.to]}`;
     case "summon":
-      return `invoque ${(a.count ?? 1) > 1 ? `${a.count} ` : ""}${a.card.name}`;
+      return `invoque ${a.count !== undefined && a.count !== 1 ? `${amountText(a.count)} ` : ""}${a.card.name}`;
     case "draw":
-      return `pioche ${a.count}`;
+      return `pioche ${amountText(a.count)}`;
     case "energy":
-      return `+${a.amount}⚡ ce tour`;
+      return `+${amountText(a.amount)}⚡ ce tour`;
   }
 }
 
@@ -65,7 +107,7 @@ export function effectLines(def: CardDef): string[] {
     const first = def.spell.target ? who[def.spell.target] : "Se joue n'importe où.";
     lines.push(`${first} ${def.spell.do.map(actionText).join(", ")}.`);
   }
-  return lines.concat((def.effects ?? []).map((e: Effect) => `${TRIGGER[e.on]} : ${e.do.map(actionText).join(", ")}.`));
+  return lines.concat((def.effects ?? []).map((e: Effect) => `${TRIGGER[e.on]}${e.if?.length ? ` (si ${e.if.map(conditionText).join(" et ")})` : ""} : ${e.do.map(actionText).join(", ")}.`));
 }
 
 /** Display text of the keywords a card has. */

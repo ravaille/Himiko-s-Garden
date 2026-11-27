@@ -1,13 +1,29 @@
 import { BOARD_SIZE, canTarget, drawCard, healUnit, hurtBuilding, hurtKing, hurtUnit, kw, summonUnit } from "./engine";
-import { onEvent } from "./events";
+import { onEvent, onSettled } from "./events";
 import { nextRandom } from "./rng";
-import type { Action, Building, CardDef, Choice, Effect, GameEvent, GameState, Selector, Unit } from "./types";
+import type {
+  Action,
+  Amount,
+  Building,
+  CardDef,
+  CardFilter,
+  Choice,
+  Condition,
+  Effect,
+  GameEvent,
+  GameState,
+  Measure,
+  Selector,
+  Unit,
+} from "./types";
 
 /**
- * Card effects (docs/design/08-effects-format.md): trigger -> action(s), resolved synchronously on the event bus.
- * Resolution order when several cards react to the same event: the active player's cards left to right
- * (a card, then the building on its slot), then the opponent's. Effects of cards and buildings cannot target
- * ghostly enemy cards; spells can.
+ * Card effects (docs/design/08-effects-format.md): trigger -> (conditions) -> action(s), resolved synchronously
+ * on the event bus. Resolution order when several cards react to the same event: the active player's cards left
+ * to right (a card, then the building on its slot), then the opponent's. Effects of cards and buildings cannot
+ * target ghostly enemy cards; spells can.
+ *
+ * Passive effects (`on: "passive"`) are not triggered: auras are recomputed after every resolved event chain.
  */
 
 /** Where an action comes from: a card or a building on the board, or a spell. */
@@ -29,6 +45,8 @@ type Ref =
 function matches(e: Effect, c: Ctx, ev: GameEvent): boolean {
   const uid = c.unit?.uid ?? c.building?.uid;
   switch (e.on) {
+    case "passive":
+      return false;
     case "play":
       return (ev.type === "played" || ev.type === "buildingPlaced") && ev.uid === uid;
     case "turnStart":
@@ -61,6 +79,81 @@ function matches(e: Effect, c: Ctx, ev: GameEvent): boolean {
 const units = (state: GameState, side: 0 | 1): Unit[] => state.players[side].board.filter((u): u is Unit => u !== null);
 const buildings = (state: GameState, side: 0 | 1): Ref[] =>
   state.players[side].buildings.flatMap((b, slot) => (b ? [{ kind: "building" as const, side, slot, building: b }] : []));
+
+/** Types a card has right now: its own plus the ones granted by passive effects. */
+export const effectiveTypes = (u: Unit): string[] => [...(u.def.types ?? []), ...(u.auraTypes ?? [])];
+
+function matchesFilter(def: CardDef, types: string[], f?: CardFilter): boolean {
+  if (!f) return true;
+  if (f.race && def.race !== f.race) return false;
+  if (f.type && !types.includes(f.type)) return false;
+  if (f.rank && def.rank !== f.rank) return false;
+  if (f.minCost !== undefined && def.cost < f.minCost) return false;
+  if (f.maxCost !== undefined && def.cost > f.maxCost) return false;
+  return true;
+}
+
+const unitMatches = (u: Unit, f?: CardFilter) => matchesFilter(u.def, effectiveTypes(u), f);
+const cardMatches = (d: CardDef, f?: CardFilter) => matchesFilter(d, d.types ?? [], f);
+
+/** How many of `m` there are, from the point of view of the card carrying the effect. */
+function measure(state: GameState, c: Ctx, m: Measure): number {
+  const foe = c.side === 0 ? 1 : 0;
+  const me = state.players[c.side];
+  const op = state.players[foe];
+  const pct = (hp: number) => Math.round((100 * hp) / state.startKingHp);
+  switch (m.of) {
+    case "allyUnits":
+      return units(state, c.side).filter((u) => !(m.others && u === c.unit) && unitMatches(u, m.filter)).length;
+    case "enemyUnits":
+      return units(state, foe).filter((u) => unitMatches(u, m.filter)).length;
+    case "allyBuildings":
+      return me.buildings.filter((b) => b && !(m.others && b === c.building) && cardMatches(b.def, m.filter)).length;
+    case "enemyBuildings":
+      return op.buildings.filter((b) => b && cardMatches(b.def, m.filter)).length;
+    case "ownGraveyard":
+      return me.graveyard.filter((d) => cardMatches(d, m.filter)).length;
+    case "enemyGraveyard":
+      return op.graveyard.filter((d) => cardMatches(d, m.filter)).length;
+    case "ownHand":
+      return me.hand.filter((d) => cardMatches(d, m.filter)).length;
+    case "ownDeck":
+      return me.deck.filter((d) => cardMatches(d, m.filter)).length;
+    case "ownKingHp":
+      return me.kingHp;
+    case "enemyKingHp":
+      return op.kingHp;
+    case "ownKingPct":
+      return pct(me.kingHp);
+    case "enemyKingPct":
+      return pct(op.kingHp);
+  }
+}
+
+function amount(state: GameState, c: Ctx, a: Amount | undefined, ev: GameEvent | null): number {
+  if (a === undefined) return 0;
+  if (typeof a === "number") return a;
+  if ("pct" in a) return ev?.type === "damaged" ? Math.floor((ev.amount * a.pct) / 100) : 0;
+  return (a.base ?? 0) + a.per * measure(state, c, a.of);
+}
+
+function holds(state: GameState, c: Ctx, conditions: Condition[] | undefined): boolean {
+  return (conditions ?? []).every((k) => {
+    const n = measure(state, c, k.of);
+    switch (k.op) {
+      case "<":
+        return n < k.value;
+      case "<=":
+        return n <= k.value;
+      case ">":
+        return n > k.value;
+      case ">=":
+        return n >= k.value;
+      case "==":
+        return n === k.value;
+    }
+  });
+}
 
 function findByUid(state: GameState, uid: number): Ref | null {
   for (const side of [0, 1] as const) {
@@ -128,49 +221,60 @@ function resolve(state: GameState, c: Ctx, sel: Selector, ev: GameEvent | null, 
 }
 
 function apply(state: GameState, c: Ctx, action: Action, ev: GameEvent | null): void {
+  const n = (a: Amount | undefined) => amount(state, c, a, ev);
   switch (action.kind) {
-    case "damage":
+    case "damage": {
+      const dmg = n(action.amount);
       for (const r of resolve(state, c, action.to, ev, action.to === "enemies")) {
         if (state.winner !== null) return;
-        if (r.kind === "king") hurtKing(state, r.side, action.amount);
-        else if (r.kind === "building") hurtBuilding(state, r.side, r.building, action.amount);
-        else hurtUnit(state, r.side, r.unit, action.amount, c.unit);
+        if (r.kind === "king") hurtKing(state, r.side, dmg);
+        else if (r.kind === "building") hurtBuilding(state, r.side, r.building, dmg);
+        else hurtUnit(state, r.side, r.unit, dmg, c.unit);
       }
       return;
+    }
     case "destroy":
       for (const r of resolve(state, c, action.to, ev, action.to === "enemies")) {
         if (r.kind === "unit") hurtUnit(state, r.side, r.unit, Math.max(1, r.unit.hp), c.unit);
         else if (r.kind === "building") hurtBuilding(state, r.side, r.building, Math.max(1, r.building.hp));
       }
       return;
-    case "heal":
+    case "heal": {
+      const amt = n(action.amount);
       for (const r of resolve(state, c, action.to, ev)) {
-        if (r.kind === "king") state.players[r.side].kingHp += action.amount;
-        else if (r.kind === "building") r.building.hp = Math.min(r.building.maxHp, r.building.hp + action.amount);
-        else healUnit(state, r.side, r.unit, action.amount);
+        if (r.kind === "king") state.players[r.side].kingHp += amt;
+        else if (r.kind === "building") r.building.hp = Math.min(r.building.maxHp, r.building.hp + amt);
+        else healUnit(state, r.side, r.unit, amt);
       }
       return;
-    case "buff":
+    }
+    case "buff": {
+      const atk = n(action.attack);
+      const hp = n(action.hp);
       for (const r of resolve(state, c, action.to, ev)) {
         if (r.kind === "unit") {
-          r.unit.attack += action.attack ?? 0;
-          r.unit.maxHp += action.hp ?? 0;
-          r.unit.hp += action.hp ?? 0;
+          r.unit.attack += atk;
+          r.unit.maxHp += hp;
+          r.unit.hp += hp;
         } else if (r.kind === "building") {
-          r.building.maxHp += action.hp ?? 0;
-          r.building.hp += action.hp ?? 0;
+          r.building.maxHp += hp;
+          r.building.hp += hp;
         }
       }
       return;
+    }
     case "draw":
-      for (let i = 0; i < action.count && state.winner === null; i++) drawCard(state, c.side);
+      for (let i = 0, count = n(action.count); i < count && state.winner === null; i++) drawCard(state, c.side);
       return;
     case "energy":
-      state.players[c.side].energy += action.amount;
+      state.players[c.side].energy += n(action.amount);
       return;
     case "summon":
-      for (let i = 0; i < (action.count ?? 1); i++) summonUnit(state, c.side, action.card);
+      for (let i = 0, count = action.count === undefined ? 1 : n(action.count); i < count; i++) summonUnit(state, c.side, action.card);
       return;
+    case "aura":
+    case "grantType":
+      return; // passive only: handled by refreshAuras
   }
 }
 
@@ -183,24 +287,29 @@ export function castSpell(state: GameState, side: 0 | 1, def: CardDef, chosen: C
   }
 }
 
-/** The event-bus handler: lets every card and building react to `ev`. */
-function runEffects(state: GameState, ev: GameEvent): void {
-  const carriers: Ctx[] = [];
+/** Every card and building that carries effects, in resolution order (active player first, left to right). */
+function carriersOf(state: GameState, ev: GameEvent | null): Ctx[] {
+  const out: Ctx[] = [];
   const order: (0 | 1)[] = state.current === 0 ? [0, 1] : [1, 0];
   const base = (side: 0 | 1, slot: number) => ({ side, slot, spell: false, chosen: null });
   for (const side of order) {
     const p = state.players[side];
     for (let slot = 0; slot < BOARD_SIZE; slot++) {
       const unit = p.board[slot];
-      if (unit) carriers.push({ ...base(side, slot), unit, building: null });
+      if (unit) out.push({ ...base(side, slot), unit, building: null });
       // A card that just died is already off the board but must still resolve its own "death" effects.
-      else if (ev.type === "died" && ev.side === side && ev.slot === slot) carriers.push({ ...base(side, slot), unit: ev.unit, building: null });
+      else if (ev?.type === "died" && ev.side === side && ev.slot === slot) out.push({ ...base(side, slot), unit: ev.unit, building: null });
       const building = p.buildings[slot];
-      if (building) carriers.push({ ...base(side, slot), unit: null, building });
-      else if (ev.type === "buildingDestroyed" && ev.side === side && ev.slot === slot) carriers.push({ ...base(side, slot), unit: null, building: ev.building });
+      if (building) out.push({ ...base(side, slot), unit: null, building });
+      else if (ev?.type === "buildingDestroyed" && ev.side === side && ev.slot === slot) out.push({ ...base(side, slot), unit: null, building: ev.building });
     }
   }
-  for (const c of carriers) {
+  return out;
+}
+
+/** The event-bus handler: lets every card and building react to `ev`. */
+function runEffects(state: GameState, ev: GameEvent): void {
+  for (const c of carriersOf(state, ev)) {
     const effects = (c.unit ?? c.building)!.def.effects;
     if (!effects) continue;
     for (const e of effects) {
@@ -208,9 +317,63 @@ function runEffects(state: GameState, ev: GameEvent): void {
       const p = state.players[c.side];
       const alive = c.unit ? p.board[c.slot] === c.unit : p.buildings[c.slot] === c.building;
       if (!alive && e.on !== "death") continue;
-      if (matches(e, c, ev)) for (const action of e.do) apply(state, c, action, ev);
+      if (matches(e, c, ev) && holds(state, c, e.if)) for (const action of e.do) apply(state, c, action, ev);
     }
   }
 }
 
+/**
+ * Recomputes every passive bonus: granted types first (so filters see them), then stat auras.
+ * Stat bonuses are applied as deltas on `attack` / `maxHp` / `hp`, so the rest of the engine needs no special case.
+ */
+export function refreshAuras(state: GameState): void {
+  const all = ([0, 1] as const).flatMap((side) => units(state, side));
+  const carriers = carriersOf(state, null).filter((c) => (c.unit ?? c.building)!.def.effects?.some((e) => e.on === "passive"));
+  const passives = (c: Ctx) => ((c.unit ?? c.building)!.def.effects ?? []).filter((e) => e.on === "passive" && holds(state, c, e.if));
+
+  const types = new Map<Unit, string[]>();
+  for (const c of carriers) {
+    for (const e of passives(c)) {
+      for (const a of e.do) {
+        if (a.kind !== "grantType") continue;
+        for (const r of resolve(state, c, a.to, null)) {
+          if (r.kind === "unit" && unitMatches(r.unit, a.where)) types.set(r.unit, [...(types.get(r.unit) ?? []), a.type]);
+        }
+      }
+    }
+  }
+  for (const u of all) {
+    const granted = types.get(u) ?? [];
+    if ((u.auraTypes ?? []).join() !== granted.join()) u.auraTypes = granted;
+  }
+
+  const want = new Map<Unit, { atk: number; hp: number }>();
+  for (const c of carriers) {
+    for (const e of passives(c)) {
+      for (const a of e.do) {
+        if (a.kind !== "aura") continue;
+        for (const r of resolve(state, c, a.to, null)) {
+          if (r.kind !== "unit" || !unitMatches(r.unit, a.where)) continue;
+          const w = want.get(r.unit) ?? { atk: 0, hp: 0 };
+          w.atk += amount(state, c, a.attack, null);
+          w.hp += amount(state, c, a.hp, null);
+          want.set(r.unit, w);
+        }
+      }
+    }
+  }
+  for (const u of all) {
+    const w = want.get(u) ?? { atk: 0, hp: 0 };
+    const dAtk = w.atk - (u.auraAtk ?? 0);
+    const dHp = w.hp - (u.auraHp ?? 0);
+    if (dAtk === 0 && dHp === 0) continue;
+    u.attack += dAtk;
+    u.maxHp += dHp;
+    u.hp = dHp > 0 ? u.hp + dHp : Math.min(u.hp, u.maxHp);
+    u.auraAtk = w.atk;
+    u.auraHp = w.hp;
+  }
+}
+
 onEvent(runEffects);
+onSettled(refreshAuras);

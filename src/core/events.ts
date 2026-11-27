@@ -11,6 +11,7 @@ export type EventHandler = (state: GameState, ev: GameEvent) => void;
 export const MAX_CHAIN = 200;
 
 const handlers: EventHandler[] = [];
+const settledHandlers: ((state: GameState) => void)[] = [];
 let chain = 0; // events handled in the current outermost emit
 let depth = 0;
 
@@ -21,6 +22,11 @@ export function onEvent(handler: EventHandler): () => void {
     const i = handlers.indexOf(handler);
     if (i >= 0) handlers.splice(i, 1);
   };
+}
+
+/** Registers a function run once the whole chain of an outermost emit is over (used to recompute passive auras). */
+export function onSettled(fn: (state: GameState) => void): void {
+  settledHandlers.push(fn);
 }
 
 /** Records the event in `state.trace`, then lets every handler react (unless the chain is too long). */
@@ -35,4 +41,5 @@ export function emit(state: GameState, ev: GameEvent): void {
   } finally {
     depth--;
   }
+  if (depth === 0) for (const fn of settledHandlers) fn(state);
 }

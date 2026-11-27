@@ -1,4 +1,4 @@
-import { castSpell } from "./effects";
+import { castSpell, refreshAuras } from "./effects";
 import { emit } from "./events";
 import { nextRandom, shuffle } from "./rng";
 import type { Building, CardDef, Choice, Config, GameState, Keywords, Order, PlayerState, Target, Unit } from "./types";
@@ -42,6 +42,7 @@ export function newGame(
   const p1 = newPlayer(decks[1], holder, cfg);
   return {
     players: [p0, p1],
+    startKingHp: cfg.kingHp,
     current: 0,
     turn: 0,
     rngState: holder.rngState,
@@ -519,6 +520,7 @@ export function actionPhase(state: GameState): void {
   const me = state.players[pi];
   state.events = [];
   const acted: Target[] = [];
+  refreshAuras(state);
   for (let slot = 0; slot < BOARD_SIZE; slot++) {
     if (state.winner !== null) return;
     const unit = me.board[slot];

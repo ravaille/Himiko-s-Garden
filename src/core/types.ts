@@ -49,7 +49,8 @@ export type Trigger =
   | "sacrifice" // when its owner sacrifices a card
   | "spell" // when its owner casts a spell
   | "anySpell" // when anyone casts a spell
-  | "slotAttacked"; // when an enemy attacks this slot (buildings)
+  | "slotAttacked" // when an enemy attacks this slot (buildings)
+  | "passive"; // always on: recomputed continuously (auras), never "fires"
 
 /** Who an action applies to, relative to the card carrying the effect. */
 export type Selector =
@@ -66,18 +67,67 @@ export type Selector =
   | "chosen" // the target picked by the player when casting a spell
   | "slotUnit"; // the friendly card on the same slot as this building
 
+/** Things that can be counted (docs/design/08-effects-format.md: conditions and scaling). */
+export type Counter =
+  | "allyUnits"
+  | "enemyUnits"
+  | "allyBuildings"
+  | "enemyBuildings"
+  | "ownGraveyard"
+  | "enemyGraveyard"
+  | "ownHand"
+  | "ownDeck"
+  | "ownKingHp"
+  | "enemyKingHp"
+  /** % of the starting king HP (can exceed 100 after healing). */
+  | "ownKingPct"
+  | "enemyKingPct";
+
+/** Restricts which cards are counted or affected. */
+export interface CardFilter {
+  race?: Race;
+  /** Counts cards that have this type, including types granted by auras. */
+  type?: string;
+  rank?: Rank;
+  minCost?: number;
+  maxCost?: number;
+}
+
+/** "How many ...": a counter, optionally filtered; `others` leaves the card carrying the effect out. */
+export interface Measure {
+  of: Counter;
+  filter?: CardFilter;
+  others?: boolean;
+}
+
+/** A number, or one that depends on the game: base + per x (count), or a % of the damage that triggered the effect. */
+export type Amount = number | { base?: number; per: number; of: Measure } | { pct: number; of: "eventDamage" };
+
+export type Comparison = "<" | "<=" | ">" | ">=" | "==";
+
+/** A condition on the game state; an effect with several conditions needs all of them. */
+export interface Condition {
+  of: Measure;
+  op: Comparison;
+  value: number;
+}
+
 export type Action =
-  | { kind: "damage"; to: Selector; amount: number }
-  | { kind: "heal"; to: Selector; amount: number }
+  | { kind: "damage"; to: Selector; amount: Amount }
+  | { kind: "heal"; to: Selector; amount: Amount }
   /** Permanent stat change (docs: stat changes are permanent by default). */
-  | { kind: "buff"; to: Selector; attack?: number; hp?: number }
+  | { kind: "buff"; to: Selector; attack?: Amount; hp?: Amount }
+  /** Passive effects only: a stat bonus that lives as long as the effect's conditions hold (recomputed continuously). */
+  | { kind: "aura"; to: Selector; where?: CardFilter; attack?: Amount; hp?: Amount }
+  /** Passive effects only: the affected cards count as having this type (for synergies and counting). */
+  | { kind: "grantType"; to: Selector; where?: CardFilter; type: string }
   /** Kills cards outright (not kings). */
   | { kind: "destroy"; to: Selector }
   /** Puts copies of a card (a token) on free slots of the owner's side; fails silently when the side is full. */
-  | { kind: "summon"; card: CardDef; count?: number }
-  | { kind: "draw"; count: number }
+  | { kind: "summon"; card: CardDef; count?: Amount }
+  | { kind: "draw"; count: Amount }
   /** Temporary energy for this turn. */
-  | { kind: "energy"; amount: number };
+  | { kind: "energy"; amount: Amount };
 
 /** What a spell asks the player to pick when it is cast (none = it can be dropped on any slot). */
 /** enemyAny = an enemy card, an enemy building or the enemy king (spells may hit buildings unless a card says otherwise). */
@@ -96,6 +146,8 @@ export type Choice =
 
 export interface Effect {
   on: Trigger;
+  /** The effect only happens (or, for passives, only applies) while all of these hold. */
+  if?: Condition[];
   do: Action[];
 }
 
@@ -161,6 +213,11 @@ export interface Unit {
   lastAttackerUid: number | null;
   /** Runtime keywords (effects may give/remove some); defaults to the card's own. */
   keywords?: Keywords;
+  /** Bonuses currently applied by passive auras (already included in attack / maxHp). */
+  auraAtk?: number;
+  auraHp?: number;
+  /** Types granted by passive effects. */
+  auraTypes?: string[];
   /** Strategist only: the target the player picked; kept until the target is gone or a new order is given. */
   order?: Order;
   /** uids of the cards that damaged this one (-1 = something else), for Bushido. */
@@ -214,6 +271,8 @@ export type GameEvent =
 
 export interface GameState {
   players: [PlayerState, PlayerState];
+  /** King HP at the start of the duel (for "% of HP" conditions). */
+  startKingHp: number;
   current: 0 | 1;
   /** Number of player-turns already finished. */
   turn: number;
