@@ -138,6 +138,16 @@ export function playFree(state: GameState, handIndex: number, slot: number, side
   else placeUnit(state, side, card, slot);
 }
 
+/** Puts the card at `deckIndex` of the side's deck on `slot` for free (creatures only). */
+export function playFromDeck(state: GameState, side: 0 | 1, deckIndex: number, slot: number): void {
+  const p = state.players[side];
+  const card = p.deck[deckIndex];
+  if (!card || (card.kind && card.kind !== "creature")) throw new Error("Cannot place this card");
+  if (slot < 0 || slot >= BOARD_SIZE || p.board[slot]) throw new Error("Slot unavailable");
+  p.deck.splice(deckIndex, 1);
+  placeUnit(state, side, card, slot);
+}
+
 /** Puts a card (token) on the first free slot of `side`; returns null when the side is full (nothing happens). */
 export function summonUnit(state: GameState, side: 0 | 1, card: CardDef): Unit | null {
   const slot = SUMMON_ORDER.find((s) => !state.players[side].board[s]);

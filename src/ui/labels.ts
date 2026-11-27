@@ -97,9 +97,11 @@ function actionText(a: Action): string {
     case "win":
       return "tu gagnes la partie";
     case "freePlay":
-      return a.random
-        ? `pose gratuitement au hasard une carte de ta main (${filterText(a.filter) || "toutes"})`
-        : `pose gratuitement une carte de ta main de ton choix (${filterText(a.filter) || "toutes"})`;
+      return (a.from ?? "deck") === "deck"
+        ? `pose gratuitement au hasard une carte de ta pioche (${filterText(a.filter) || "toutes"})`
+        : a.random
+          ? `pose gratuitement au hasard une carte de ta main (${filterText(a.filter) || "toutes"})`
+          : `pose gratuitement une carte de ta main de ton choix (${filterText(a.filter) || "toutes"})`;
   }
 }
 

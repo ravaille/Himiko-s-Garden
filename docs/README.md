@@ -14,6 +14,7 @@
 | [design/09-archetypes.md](design/09-archetypes.md) | Archétypes et types | 🟡 brouillon |
 | [design/10-deckbuilding.md](design/10-deckbuilding.md) | Deck-building | 🟢 spec v0 |
 | [design/11-first-set.md](design/11-first-set.md) | Premier set de test | 🟡 brouillon |
+| [design/12-world-and-campaign.md](design/12-world-and-campaign.md) | Monde et campagne (modèle Pokémon) | 🟡 cadrage |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Structure du code, choix techniques | 🟢 initial |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Publier sur GitHub Pages et itch.io | 🟢 initial |
 | [ROADMAP.md](ROADMAP.md) | Jalons et suivi | 🟡 à remplir après les specs |

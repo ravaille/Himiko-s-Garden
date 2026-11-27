@@ -155,3 +155,7 @@ Le **Gardien** dévie même vers un Spectral (l'IA frappe bêtement le Gardien s
 - **Équipement compté** : un sort marqué `equipment` reste compté sur la carte qui le porte (mesure « équipement porté »). Le **Ronin solitaire** gagne +10 ATK par équipement et +10 PV tant que tu as 3 cartes ou moins.
 - **Pose gratuite** (`freePlay`, **Général Professeur**) : au début de ton tour, tu peux poser **gratuitement** une carte de ta main (créature ou bâtiment, coût ≤ 3) **de ton choix**, sur une case libre. Bouton « 🎁 Pose gratuite » dans l'interface, puis clic sur la carte et sur la case. Non utilisée, elle **expire en fin de tour**. Variante `random` (version « nerfée ») : une carte éligible est posée au hasard, tout de suite. L'IA l'utilise sur sa meilleure carte éligible.
 - Tous les effets du brouillon de premier set (11-first-set.md) sont maintenant exprimables ; reste à écrire les cartes.
+
+## Correction : la pose gratuite du Professeur (2026-11-27)
+- Elle vient de la **pioche**, pas de la main. **Version aléatoire d'abord** : au début de ton tour, une créature de coût ≤ 3 tirée **au hasard dans ta pioche** est posée gratuitement sur une case libre (rien si aucune ne convient ou si le terrain est plein). La pioche diminue d'une carte.
+- Le **choix du joueur** parmi les cartes de la pioche viendra plus tard (il faudra un sélecteur de pioche). Le mécanisme « pose gratuite depuis la main » reste disponible pour d'autres cartes (`from: "hand"`).

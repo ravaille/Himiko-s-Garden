@@ -70,7 +70,7 @@ describe("equipment counted (Ronin)", () => {
 });
 
 describe("free placement (Professor General)", () => {
-  const teacher = unitDef("teacher", 1, 90, [{ on: "turnStart", do: [{ kind: "freePlay", filter: { maxCost: 3 } }] }], { cost: 7 }, "passive");
+  const teacher = unitDef("teacher", 1, 90, [{ on: "turnStart", do: [{ kind: "freePlay", filter: { maxCost: 3 }, from: "hand" }] }], { cost: 7 }, "passive");
   const cheap = (id: string, cost: number) => unitDef(id, 5, 5, [], { cost });
 
   it("grants a free placement each turn; the player picks a matching card and a slot", () => {
@@ -100,7 +100,7 @@ describe("free placement (Professor General)", () => {
   });
 
   it("random mode places a matching creature at once (the nerfed version)", () => {
-    const rnd = unitDef("rnd", 1, 90, [{ on: "turnStart", do: [{ kind: "freePlay", filter: { maxCost: 3 }, random: true }] }], { cost: 7 }, "passive");
+    const rnd = unitDef("rnd", 1, 90, [{ on: "turnStart", do: [{ kind: "freePlay", filter: { maxCost: 3 }, random: true, from: "hand" }] }], { cost: 7 }, "passive");
     const s = game({ 0: rnd });
     s.players[0].hand = [cheap("a", 1), cheap("b", 2), cheap("big", 6)];
     beginTurn(s);
@@ -109,6 +109,33 @@ describe("free placement (Professor General)", () => {
     expect(["a", "b"]).toContain(placed[0]);
     expect(s.players[0].hand.map((c) => c.id)).toContain("big");
     expect(s.players[0].freePlays).toHaveLength(0);
+  });
+
+  it("from the deck (default): places a random matching creature from the deck at once, and the deck shrinks", () => {
+    const prof = unitDef("prof", 1, 90, [{ on: "turnStart", do: [{ kind: "freePlay", filter: { maxCost: 3 }, random: true }] }], { cost: 7 }, "passive");
+    const s = game({ 0: prof });
+    s.players[0].deck = [cheap("a", 1), cheap("big", 6), cheap("b", 3)];
+    const handBefore = s.players[0].hand.length;
+    beginTurn(s);
+    const placed = s.players[0].board.filter((u) => u && u.def.id !== "prof").map((u) => u!.def.id);
+    expect(placed).toHaveLength(1);
+    expect(["a", "b"]).toContain(placed[0]);
+    expect(s.players[0].deck.map((c) => c.id)).toContain("big");
+    expect(s.players[0].deck.length).toBe(2); // one placed
+    expect(s.players[0].hand.length).toBe(handBefore); // (no draw on the very first turn)
+    expect(s.players[0].freePlays).toHaveLength(0);
+  });
+
+  it("from the deck: nothing happens without a matching creature or a free slot", () => {
+    const prof = unitDef("prof", 1, 90, [{ on: "turnStart", do: [{ kind: "freePlay", filter: { maxCost: 3 }, random: true }] }], { cost: 7 }, "passive");
+    const s = game({ 0: prof });
+    s.players[0].deck = [cheap("big", 6)];
+    expect(() => beginTurn(s)).not.toThrow();
+    expect(s.players[0].board.filter(Boolean)).toHaveLength(1);
+    const t = game({ 0: prof, 1: cheap("x", 1), 2: cheap("x", 1), 3: cheap("x", 1), 4: cheap("x", 1), 5: cheap("x", 1), 6: cheap("x", 1) });
+    t.players[0].deck = [cheap("a", 1), cheap("a2", 1)];
+    beginTurn(t);
+    expect(t.players[0].deck).toHaveLength(2); // board full: nothing placed
   });
 
   it("works for buildings too, and a spell cannot be placed", () => {

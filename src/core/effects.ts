@@ -1,4 +1,4 @@
-import { BOARD_SIZE, SUMMON_ORDER, canTarget, drawCard, healUnit, hurtBuilding, hurtKing, hurtUnit, kw, playFree, summonUnit } from "./engine";
+import { BOARD_SIZE, SUMMON_ORDER, canTarget, drawCard, healUnit, hurtBuilding, hurtKing, hurtUnit, kw, playFree, playFromDeck, summonUnit } from "./engine";
 import { onEvent, onSettled } from "./events";
 import { nextRandom } from "./rng";
 import type {
@@ -290,10 +290,17 @@ function apply(state: GameState, c: Ctx, action: Action, ev: GameEvent | null): 
       return;
     case "freePlay": {
       const p = state.players[c.side];
+      const slot = SUMMON_ORDER.find((s) => !p.board[s]);
+      const isCreature = (d: CardDef) => !d.kind || d.kind === "creature";
+      if ((action.from ?? "deck") === "deck") {
+        // A random matching creature from the deck, placed at once.
+        const options = p.deck.flatMap((d, i) => (isCreature(d) && cardMatches(d, action.filter) ? [i] : []));
+        if (options.length && slot !== undefined) playFromDeck(state, c.side, options[Math.floor(nextRandom(state) * options.length)], slot);
+        return;
+      }
       p.freePlays.push(action.filter);
       if (!action.random) return; // the player will choose during the placement phase
-      const options = p.hand.flatMap((d, i) => (d.kind !== "spell" && (!d.kind || d.kind === "creature") && cardMatches(d, action.filter) ? [i] : []));
-      const slot = SUMMON_ORDER.find((s) => !p.board[s]);
+      const options = p.hand.flatMap((d, i) => (isCreature(d) && cardMatches(d, action.filter) ? [i] : []));
       if (options.length && slot !== undefined) playFree(state, options[Math.floor(nextRandom(state) * options.length)], slot, c.side);
       else p.freePlays.pop();
       return;

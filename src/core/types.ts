@@ -135,10 +135,11 @@ export type Action =
   /** The effect's owner wins the duel on the spot. */
   | { kind: "win" }
   /**
-   * Lets the owner put a card from their hand (matching `filter`) on the board for free: the player picks it during the
-   * placement phase (unused picks expire at the end of the turn); with `random`, a matching creature is placed at once.
+   * Puts a card matching `filter` on the board for free. `from: "deck"` (the default) takes a random matching creature
+   * from the owner's deck at once (the deck shrinks). `from: "hand"` lets the player pick one in hand during the
+   * placement phase (unused picks expire at the end of the turn), or a random one with `random`.
    */
-  | { kind: "freePlay"; filter: CardFilter; random?: boolean };
+  | { kind: "freePlay"; filter: CardFilter; random?: boolean; from?: "hand" | "deck" };
 
 /** What a spell asks the player to pick when it is cast (none = it can be dropped on any slot). */
 /** enemyAny = an enemy card, an enemy building or the enemy king (spells may hit buildings unless a card says otherwise). */

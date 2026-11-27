@@ -112,7 +112,7 @@ const PROFESSOR: CardDef = {
   rank: "general",
   race: "human",
   types: ["tutor"],
-  effects: [{ on: "turnStart", do: [{ kind: "freePlay", filter: { maxCost: 3 } }] }],
+  effects: [{ on: "turnStart", do: [{ kind: "freePlay", filter: { maxCost: 3 }, random: true }] }],
 };
 
 const GENERALS: CardDef[] = [
