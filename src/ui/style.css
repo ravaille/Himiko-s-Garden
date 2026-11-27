@@ -111,3 +111,36 @@ button.primary { background: var(--accent); border-color: var(--accent); font-we
 
 .hand .handcard { flex: 1 1 0; max-width: 120px; min-width: 60px; width: auto; }
 .hand { scrollbar-color: #3a3358 transparent; }
+
+/* ---- deck-building ---- */
+.deckbuilder { display: grid; grid-template-columns: 1fr 300px; gap: 12px; align-items: start; }
+.collection { max-height: calc(100vh - 70px); overflow-y: auto; padding-right: 6px; }
+.collection h3 { margin: 14px 0 0; font-size: .95rem; }
+.collection h3 small { color: var(--muted); font-weight: normal; }
+.filters { display: flex; gap: 6px; flex-wrap: wrap; position: sticky; top: 0; background: var(--bg); padding: 4px 0; z-index: 3; }
+.filters input, .filters select { background: var(--panel); color: var(--ink); border: 1px solid #3a3358; border-radius: 6px; padding: 6px 8px; font: inherit; }
+.dbgrid { padding: 8px 0; gap: 8px; }
+.dbgrid .handcard { width: 104px; cursor: pointer; position: relative; }
+.dbcard .copies { position: absolute; right: 4px; bottom: 4px; background: #000b; border-radius: 6px; padding: 1px 6px; font-size: .75rem; z-index: 2; }
+.deckpanel { position: sticky; top: 8px; background: var(--panel); border-radius: 10px; padding: 10px 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
+.deckpanel h2 { margin: 0 0 6px; font-size: 1.05rem; }
+.deckpanel small.ok { color: var(--hp); } .deckpanel small.bad { color: var(--atk); }
+.deckpanel .rule { color: #ffd24a; font-size: .8rem; margin: 4px 0; }
+.curve { display: flex; gap: 4px; align-items: flex-end; height: 70px; margin: 6px 0; }
+.curve div { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+.curve span { width: 100%; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 2px; }
+.curve em { font-style: normal; font-size: .7rem; color: var(--muted); } .curve u { text-decoration: none; font-size: .7rem; }
+.decklist { list-style: none; padding: 0; margin: 6px 0; font-size: .85rem; }
+.decklist li { display: flex; gap: 6px; align-items: baseline; padding: 2px 4px; border-radius: 4px; cursor: pointer; }
+.decklist li:hover:not(.head):not(.muted) { background: rgba(232,88,122,.18); }
+.decklist li.head { cursor: default; color: var(--muted); font-size: .75rem; text-transform: uppercase; margin-top: 6px; }
+.decklist .c { background: #3a3358; border-radius: 50%; min-width: 20px; text-align: center; font-size: .75rem; }
+.decklist .n { margin-left: auto; }
+.rk { font-size: .65rem; font-style: normal; border: 1px solid; border-radius: 4px; padding: 0 3px; }
+.rk-general { color: #ffd24a; } .rk-colonel { color: #c9a7ff; } .rk-lieutenant { color: #c98a4a; }
+.issues { color: var(--atk); font-size: .8rem; padding-left: 16px; margin: 6px 0; }
+.notice { color: #ffd24a; font-size: .8rem; margin: 6px 0; }
+.deckpanel .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.menu { background: var(--panel); padding: 20px 28px; border-radius: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 240px; }
+.menu h2 { font-size: 1.4rem; margin: 0 0 6px; }
+@media (max-width: 760px) { .deckbuilder { grid-template-columns: 1fr; } .deckpanel { position: static; } .collection { max-height: none; } }

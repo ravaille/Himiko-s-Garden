@@ -1,4 +1,17 @@
-import type { Personality } from "../core/types";
+import type { Personality, Race, Rank } from "../core/types";
+
+export const RACE: Record<Race, string> = {
+  human: "Humain",
+  henge: "Henge",
+  yurei: "Yurei",
+  tsukumogami: "Tsukumogami",
+  oni: "Oni",
+  beast: "Bête",
+  demon: "Démon",
+  robot: "Robot",
+};
+
+export const RANK: Record<Rank, string> = { general: "Général", colonel: "Colonel", lieutenant: "Lieutenant" };
 
 export const PERSONALITY: Record<Personality, { icon: string; label: string; help: string }> = {
   none: { icon: "▫️", label: "Neutre", help: "Frappe en face, sinon au centre, sinon le Roi." },

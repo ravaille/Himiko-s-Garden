@@ -13,6 +13,17 @@ export type Personality =
 
 export type Rank = "general" | "colonel" | "lieutenant";
 
+/** Races (docs/design/02-cards.md). Types are free-form strings (open list, docs/design/09-archetypes.md). */
+export type Race = "human" | "henge" | "yurei" | "tsukumogami" | "oni" | "beast" | "demon" | "robot";
+
+/** Deck constraint carried by a card (typically a General): every other card must match. */
+export interface DeckRule {
+  /** Only these races are allowed in the deck. */
+  races?: Race[];
+  /** Only cards having at least one of these types are allowed. */
+  types?: string[];
+}
+
 /** Static definition of a card (data, not code). */
 export interface CardDef {
   id: string;
@@ -23,6 +34,11 @@ export interface CardDef {
   personality: Personality;
   /** Optional rank. Any card may have any rank for now (see docs/design/05-hierarchy.md). */
   rank?: Rank;
+  race?: Race;
+  /** Archetype types, shared across races (e.g. "samurai", "mage"). */
+  types?: string[];
+  /** Deck-building constraint (see docs/design/10-deckbuilding.md). */
+  deckRule?: DeckRule;
   /** Energy gained when sacrificed. Defaults to 1. */
   offering?: number;
   /** Optional rules text shown on the card (effects come later). */

@@ -4,6 +4,7 @@ import { BOARD_SIZE, actionPhase, beginTurn, endTurn, newGame, offer, playCard, 
 import type { CardDef, GameState } from "../core/types";
 import { TEST_POOL } from "../data/cards";
 import { cardHtml } from "./card";
+import { currentDeck, deckbuilderClick, deckbuilderFilter, deckbuilderHtml, duelBlockers } from "./deckbuilder";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -14,6 +15,11 @@ let busy = false;
 let message = "";
 let speed = 1; // 1 = normal, 2 = fast
 let modal: { title: string; cards: CardDef[] } | null = null;
+let screen: "deck" | "duel" = "deck";
+let menuOpen = false;
+
+/** Fixed opponent deck for now (docs/design/10-deckbuilding.md: the enemy keeps a base deck). */
+const ENEMY_DECK = buildRandomDeck(TEST_POOL, { rngState: 20260101 });
 
 const HUMAN = 0;
 
@@ -22,12 +28,46 @@ export function startGame(el: HTMLElement): void {
   root.onclick = onClick;
   root.onmouseover = onHover;
   root.onmouseleave = clearPreview;
-  newDuel();
+  root.oninput = onFilter;
+  root.onchange = onFilter;
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      menuOpen = !menuOpen;
+      render();
+    }
+  });
+  render(); // opens on the deck-building screen
+}
+
+function onFilter(e: Event): void {
+  const el = e.target as HTMLInputElement | HTMLSelectElement;
+  if (screen !== "deck" || !deckbuilderFilter(el)) return;
+  const key = el.dataset.filter;
+  const caret = el instanceof HTMLInputElement ? el.selectionStart : null;
+  render();
+  const again = root.querySelector<HTMLInputElement>(`[data-filter="${key}"]`);
+  if (again && key === "text") {
+    again.focus();
+    if (caret !== null) again.setSelectionRange(caret, caret);
+  }
+}
+
+function menuHtml(): string {
+  if (!menuOpen) return "";
+  const blockers = duelBlockers();
+  return `<div class="overlay" data-act="menu-bg"><div class="menu">
+    <h2>Menu</h2>
+    <button data-act="menu-resume">Reprendre</button>
+    <button data-act="menu-deck">🃏 Deck-building</button>
+    <button data-act="menu-duel" ${blockers.length ? "disabled" : ""} title="${blockers.join(" ")}">⚔ Nouveau duel</button>
+  </div></div>`;
 }
 
 function newDuel(): void {
   const h = { rngState: (Date.now() & 0xffffffff) >>> 0 };
-  game = newGame([buildRandomDeck(TEST_POOL, h), buildRandomDeck(TEST_POOL, h)], h.rngState + 1);
+  game = newGame([currentDeck(), ENEMY_DECK.slice()], h.rngState + 1);
+  screen = "duel";
+  menuOpen = false;
   selected = null;
   modal = null;
   busy = false;
@@ -66,6 +106,10 @@ function kingHtml(side: 0 | 1): string {
 }
 
 function render(): void {
+  if (screen === "deck") {
+    root.innerHTML = deckbuilderHtml() + menuHtml();
+    return;
+  }
   const me = game.players[HUMAN];
   const myTurn = game.current === HUMAN && !busy && game.winner === null;
   const hand = me.hand
@@ -101,7 +145,8 @@ function render(): void {
         <div class="pilecard back">📚</div><span>Pioche · ${me.deck.length}</span></div>
     </div>
     ${modal ? modalHtml() : ""}
-    ${over ? `<div class="overlay"><div><h2>${result}</h2><button data-act="again" class="primary">Rejouer</button></div></div>` : ""}`;
+    ${over ? `<div class="overlay"><div><h2>${result}</h2><button data-act="again" class="primary">Rejouer</button> <button data-act="menu-deck">🃏 Deck-building</button></div></div>` : ""}
+    ${menuHtml()}`;
 }
 
 function modalHtml(): string {
@@ -165,6 +210,33 @@ function onHover(e: MouseEvent): void {
 function onClick(e: MouseEvent): void {
   const t = e.target as HTMLElement;
   const act = t.closest<HTMLElement>("[data-act]")?.dataset.act;
+  if (act === "menu-bg" && t.classList.contains("overlay")) {
+    menuOpen = false;
+    return render();
+  }
+  if (act === "menu-resume") {
+    menuOpen = false;
+    return render();
+  }
+  if (act === "menu-deck") {
+    screen = "deck";
+    menuOpen = false;
+    modal = null;
+    return render();
+  }
+  if (act === "menu-duel") return duelBlockers().length ? undefined : newDuel();
+  if (menuOpen) return;
+  if (screen === "deck") {
+    const r = deckbuilderClick(t);
+    if (r === "duel") return newDuel();
+    if (r === "render") {
+      const keep = root.querySelector(".collection")?.scrollTop ?? 0;
+      render();
+      const col = root.querySelector(".collection");
+      if (col) col.scrollTop = keep;
+    }
+    return;
+  }
   if (act === "again") return newDuel();
   if (modal) {
     modal = null;
