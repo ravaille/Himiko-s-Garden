@@ -2,6 +2,7 @@ import { nextRandom, shuffle } from "./rng";
 import type { CardDef, Config, GameState, PlayerState, Target, Unit } from "./types";
 
 export const BOARD_SIZE = 7;
+export const FATIGUE_DAMAGE = 10;
 /** Central slots in priority order: middle, then left, then right. */
 export const CENTER_SLOTS = [3, 2, 4] as const;
 
@@ -18,6 +19,8 @@ function newPlayer(deck: CardDef[], state: { rngState: number }, cfg: Config): P
     kingHp: cfg.kingHp,
     deck: shuffled.slice(cfg.handSize),
     hand: shuffled.slice(0, cfg.handSize),
+    graveyard: [],
+    fatigued: false,
     board: new Array<Unit | null>(BOARD_SIZE).fill(null),
     maxEnergy: 0,
     energy: 0,
@@ -52,9 +55,16 @@ export function newGame(
 export function beginTurn(state: GameState): void {
   const p = state.players[state.current];
   p.turnsPlayed++;
+  p.fatigued = false;
   if (state.turn > 0) {
     const card = p.deck.shift();
     if (card) p.hand.push(card);
+    else {
+      // Empty deck: failing to draw costs the king 10 HP (no stalemates).
+      p.fatigued = true;
+      p.kingHp -= FATIGUE_DAMAGE;
+      if (p.kingHp <= 0) state.winner = state.current === 0 ? 1 : 0;
+    }
   }
   p.energy = p.maxEnergy;
   // Second player's compensation: +1 temporary energy on their first turn.
@@ -74,6 +84,7 @@ export function offer(state: GameState, handIndex: number): void {
   if (p.offered) throw new Error("Already offered this turn");
   const [card] = p.hand.splice(handIndex, 1);
   if (!card) throw new Error("No such card in hand");
+  p.graveyard.push(card);
   const gain = card.offering ?? 1;
   p.maxEnergy += gain;
   p.energy += gain;
@@ -215,7 +226,10 @@ function hit(state: GameState, pi: 0 | 1, from: number, attacker: Unit, t: Targe
   t.unit.hp -= attacker.def.attack;
   t.unit.lastAttackerUid = attacker.uid;
   const killed = t.unit.hp <= 0;
-  if (killed) enemy.board[t.slot] = null;
+  if (killed) {
+    enemy.board[t.slot] = null;
+    enemy.graveyard.push(t.unit.def);
+  }
   state.events.push({ side: pi, from, to: t.slot, damage: attacker.def.attack, killed });
 }
 
@@ -236,4 +250,31 @@ export function actionPhase(state: GameState): void {
     acted.push(target);
     hit(state, pi, slot, unit, target);
   }
+}
+
+/**
+ * Preview for the UI: who would a card of this definition hit if placed at `slot` for player `pi`?
+ * Does not consume randomness (Berserk returns every possible enemy).
+ */
+export function previewTargets(
+  state: GameState,
+  pi: 0 | 1,
+  slot: number,
+  def: CardDef,
+): { targets: Target[]; note: string | null } {
+  const enemy = state.players[pi === 0 ? 1 : 0];
+  if (def.personality === "berserk") {
+    const all: Target[] = [];
+    enemy.board.forEach((unit, s) => {
+      if (unit) all.push({ kind: "unit", slot: s, unit });
+    });
+    return { targets: all.length > 0 ? all : [KING], note: "au hasard parmi tous les ennemis" };
+  }
+  if (def.personality === "passive") return { targets: [], note: "n'attaque pas" };
+  const ghost: Unit = { uid: -1, def, hp: def.hp, deployedOn: 0, lastAttackerUid: null };
+  const chosen = chooseTarget(state, pi, slot, ghost, []);
+  if (!chosen) return { targets: [], note: "n'attaquera pas (aucune cible sûre)" };
+  const final = redirectToGuardian(enemy, chosen);
+  const note = def.personality === "faithful" ? "dépend des alliés qui attaquent avant elle" : null;
+  return { targets: [final], note };
 }

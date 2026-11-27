@@ -69,7 +69,12 @@ Au-delà de PV / Attaque / Coût : race, type, élément, pouvoir, effets spéci
 - Le **second joueur** a **+1 énergie temporaire** à son premier tour (équivaut à -1 sur le coût de la première carte). Simulation : 51 % / 49 % entre premier et second joueur.
 - PVE : le joueur commence ; l'IA, sans besoin d'équité, est le second joueur.
 
+## Pioche vide (validé)
+Si un joueur doit piocher et ne le peut pas, **son Roi perd 10 PV** (pas de blocage sans vainqueur). Sauf contre-indication d'une carte.
+**Aucune autre condition de victoire** de base (seuls les effets de Général peuvent en ajouter).
+
 ## À définir
+- Règles des sorts et des bâtiments (quand, où, coût)
 - La pioche du premier joueur au tout premier tour (provisoire : aucune)
 - Effets de case (à concevoir)
 - Fin de partie, égalité, limite de tours

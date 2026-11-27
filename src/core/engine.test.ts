@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { poseAI, playDuel } from "./ai";
 import { buildRandomDeck } from "./deck";
-import { actionPhase, beginTurn, newGame, offer, playCard } from "./engine";
+import { actionPhase, beginTurn, newGame, offer, playCard, previewTargets } from "./engine";
 import type { CardDef, GameState, Personality } from "./types";
 import { TEST_POOL } from "../data/cards";
 
@@ -103,6 +103,37 @@ describe("turn rules", () => {
     offer(s, 0);
     expect(s.players[0].maxEnergy).toBe(1);
     expect(() => offer(s, 0)).toThrow();
+  });
+});
+
+describe("graveyard and fatigue", () => {
+  it("sends dead and sacrificed cards to the graveyard", () => {
+    const s = setup({ 0: card("a", 10, 10) }, { 0: card("weak", 1, 5) });
+    actionPhase(s);
+    expect(s.players[1].graveyard.map((c) => c.id)).toEqual(["weak"]);
+    s.players[0].hand = [card("x", 1, 1)];
+    offer(s, 0);
+    expect(s.players[0].graveyard.map((c) => c.id)).toEqual(["x"]);
+  });
+
+  it("costs 10 king HP to draw from an empty deck", () => {
+    const s = setup({}, {});
+    s.turn = 2;
+    s.players[0].deck = [];
+    beginTurn(s);
+    expect(s.players[0].kingHp).toBe(140);
+    expect(s.players[0].fatigued).toBe(true);
+  });
+});
+
+describe("preview", () => {
+  it("previews the facing target without consuming randomness", () => {
+    const s = setup({}, { 2: card("t", 1, 50) });
+    const before = s.rngState;
+    const r = previewTargets(s, 0, 2, card("b", 5, 5, "berserk"));
+    expect(r.targets).toHaveLength(1);
+    expect(s.rngState).toBe(before);
+    expect(previewTargets(s, 0, 2, card("b", 5, 5, "brave")).targets[0]).toMatchObject({ kind: "unit", slot: 2 });
   });
 });
 

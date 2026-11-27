@@ -9,6 +9,7 @@
 | [design/04-ui-ux.md](design/04-ui-ux.md) | Écrans, interactions, mobile | 🟡 à remplir |
 | [design/05-hierarchy.md](design/05-hierarchy.md) | Roi, Général, Colonels, Lieutenants | 🟡 principes validés |
 | [design/06-card-layout.md](design/06-card-layout.md) | Anatomie d'une carte générique | 🟢 v0 |
+| [design/07-keywords-and-effects.md](design/07-keywords-and-effects.md) | Mots-clés et effets de cartes | 🟡 liste de départ |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Structure du code, choix techniques | 🟢 initial |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Publier sur GitHub Pages et itch.io | 🟢 initial |
 | [ROADMAP.md](ROADMAP.md) | Jalons et suivi | 🟡 à remplir après les specs |

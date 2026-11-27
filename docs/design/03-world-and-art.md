@@ -16,7 +16,10 @@ Analogie : à Magic ou Yu-Gi-Oh!, personne ne se demande pourquoi deux dragons s
 - Japon féodal très romancé et exagéré, fantasy. **Himiko** est la princesse ; les **démons** sont une menace. Guerriers, ninjas, etc.
 - Sert **uniquement** de lore : illustrations, noms, histoires annexes par carte. Lore extensible à l'infini.
 - **Aucun camp imposé** : un joueur peut jouer des démons, ou deux Himiko peuvent s'affronter. L'appartenance (Himiko / démons) n'a pas d'effet de gameplay, ou presque (peut-être un mot-clé de type, à voir).
-- **Le général est libre** : le joueur choisit la carte qui fait office de « roi » / chef.
+- **Le Général est libre** : le joueur choisit sa carte maîtresse (voir [05-hierarchy.md](05-hierarchy.md)).
+
+## Races (liste de départ)
+Humain · Obake (transformeur) · Tsukumogami (objet du quotidien qui prend vie) · Yokai (humanoïdes dont les oni) · Yurei (ombres) · Robots. *Liste non exhaustive, voir [02-cards.md](02-cards.md).*
 
 ## Lore par carte
 Court texte d'ambiance, trait de personnalité (qui pilote son comportement, voir [01-rules.md](01-rules.md)), histoire annexe optionnelle.

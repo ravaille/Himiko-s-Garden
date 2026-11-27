@@ -24,6 +24,10 @@ Alternative explorée : le **passif** d'une carte s'étend selon son grade du mo
 - **Colonel** → s'étend à la **main et au terrain**
 - **Lieutenant** → s'étend aux **cartes adjacentes**
 
+## Désignation des gradés = deck-building
+Le grade d'une carte est **désigné avant le duel**, pendant la construction du deck (7 gradés sur 30 cartes). Le prototype actuel ne peut pas le simuler : il faudra un écran de deck-building.
+Effets de case : créés par les Colonels et Généraux (voir [07-keywords-and-effects.md](07-keywords-and-effects.md)).
+
 ## Décision en suspens : grade fixe ou libre ?
 Pour l'instant : **toute carte peut avoir tout grade** (temporaire). Option 2 : gradés = catégorie de cartes à part. Le code doit rester agnostique : un champ « grades autorisés » par carte (par défaut : tous).
 

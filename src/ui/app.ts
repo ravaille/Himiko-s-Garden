@@ -1,7 +1,7 @@
 import { poseAI } from "../core/ai";
 import { buildRandomDeck } from "../core/deck";
-import { BOARD_SIZE, actionPhase, beginTurn, endTurn, newGame, offer, playCard } from "../core/engine";
-import type { GameState } from "../core/types";
+import { BOARD_SIZE, actionPhase, beginTurn, endTurn, newGame, offer, playCard, previewTargets } from "../core/engine";
+import type { CardDef, GameState } from "../core/types";
 import { TEST_POOL } from "../data/cards";
 import { cardHtml } from "./card";
 
@@ -13,12 +13,15 @@ let selected: number | null = null;
 let busy = false;
 let message = "";
 let speed = 1; // 1 = normal, 2 = fast
+let modal: { title: string; cards: CardDef[] } | null = null;
 
 const HUMAN = 0;
 
 export function startGame(el: HTMLElement): void {
   root = el;
   root.onclick = onClick;
+  root.onmouseover = onHover;
+  root.onmouseleave = clearPreview;
   newDuel();
 }
 
@@ -26,6 +29,7 @@ function newDuel(): void {
   const h = { rngState: (Date.now() & 0xffffffff) >>> 0 };
   game = newGame([buildRandomDeck(TEST_POOL, h), buildRandomDeck(TEST_POOL, h)], h.rngState + 1);
   selected = null;
+  modal = null;
   busy = false;
   beginTurn(game); // the human plays first
   message = "À toi : pose des cartes, ou sacrifie-en une pour gagner de l'énergie.";
@@ -55,7 +59,9 @@ function kingHtml(side: 0 | 1): string {
     <div class="bar"><div style="width:${pct}%"></div></div>
     <span>♥ ${Math.max(0, p.kingHp)}</span>
     <span>⚡ ${p.energy}/${p.maxEnergy}</span>
-    <span>🃏 ${p.hand.length}</span><span>📚 ${p.deck.length}</span>
+    <span>🃏 ${p.hand.length}</span>
+    <span class="chip">📚 ${p.deck.length}</span>
+    <span class="chip link" data-pile="grave${side}">⚰️ ${p.graveyard.length}</span>
   </div>`;
 }
 
@@ -86,8 +92,72 @@ function render(): void {
       <button data-act="offer" ${canOffer ? "" : "disabled"}>🔥 Sacrifier la carte (+1⚡)${me.offered ? " — déjà fait ce tour" : ""}</button>
       <button data-act="end" class="primary" ${myTurn ? "" : "disabled"}>Fin du tour ▶</button>
     </div>
-    <div class="hand">${hand}</div>
+    <div class="hint" id="hint"></div>
+    <div class="bottom">
+      <div class="pile grave" data-pile="grave0" title="Cimetière (clique pour voir)">
+        <div class="pilecard">⚰️</div><span>Cimetière · ${me.graveyard.length}</span></div>
+      <div class="hand">${hand}</div>
+      <div class="pile deck" data-pile="deck0" title="Ta pioche (clique pour voir le contenu)">
+        <div class="pilecard back">📚</div><span>Pioche · ${me.deck.length}</span></div>
+    </div>
+    ${modal ? modalHtml() : ""}
     ${over ? `<div class="overlay"><div><h2>${result}</h2><button data-act="again" class="primary">Rejouer</button></div></div>` : ""}`;
+}
+
+function modalHtml(): string {
+  const body = modal!.cards.length
+    ? modal!.cards.map((c) => `<div class="handcard">${cardHtml(c)}</div>`).join("")
+    : '<p class="muted">Vide.</p>';
+  return `<div class="overlay modal" data-act="close"><div class="modalbox">
+    <h3>${modal!.title} <small>(${modal!.cards.length})</small></h3><div class="gallery">${body}</div>
+    <p class="muted">Clique n'importe où pour fermer.</p></div></div>`;
+}
+
+function openPile(pile: string): void {
+  const side = Number(pile.slice(-1)) as 0 | 1;
+  const p = game.players[side];
+  if (pile.startsWith("grave")) {
+    modal = {
+      title: side === HUMAN ? "Ton cimetière" : "Cimetière adverse",
+      cards: p.graveyard.slice().reverse(),
+    };
+  } else {
+    // Contents only, sorted: the draw order stays hidden.
+    modal = {
+      title: "Ta pioche (ordre caché)",
+      cards: p.deck.slice().sort((a, b) => a.cost - b.cost || a.name.localeCompare(b.name)),
+    };
+  }
+  render();
+}
+
+function clearPreview(): void {
+  root.querySelectorAll(".target").forEach((el) => el.classList.remove("target"));
+  const hint = root.querySelector<HTMLElement>("#hint");
+  if (hint) hint.textContent = "";
+}
+
+/** Hovering an empty slot with a card selected shows who it would attack. */
+function onHover(e: MouseEvent): void {
+  clearPreview();
+  if (selected === null || busy || game.current !== HUMAN || game.winner !== null) return;
+  const slotEl = (e.target as HTMLElement).closest<HTMLElement>('.slot[data-side="0"]');
+  if (!slotEl || slotEl.querySelector(".card")) return;
+  const slot = Number(slotEl.dataset.slot);
+  const def = game.players[HUMAN].hand[selected];
+  if (!def) return;
+  const { targets, note } = previewTargets(game, HUMAN, slot, def);
+  for (const t of targets) {
+    const el =
+      t.kind === "king"
+        ? root.querySelector('.king[data-side="1"]')
+        : root.querySelector(`.slot[data-side="1"][data-slot="${t.slot}"]`);
+    el?.classList.add("target");
+  }
+  let who = "";
+  if (targets.length === 1) who = targets[0].kind === "king" ? "frappera le Roi adverse" : `frappera ${targets[0].unit.def.name}`;
+  const hint = root.querySelector<HTMLElement>("#hint");
+  if (hint) hint.textContent = `🎯 ${def.name} : ${note ?? (who || "n'attaquera pas")} · agira au prochain tour`;
 }
 
 // ---------------------------------------------------------------- interaction
@@ -96,6 +166,12 @@ function onClick(e: MouseEvent): void {
   const t = e.target as HTMLElement;
   const act = t.closest<HTMLElement>("[data-act]")?.dataset.act;
   if (act === "again") return newDuel();
+  if (modal) {
+    modal = null;
+    return render();
+  }
+  const pile = t.closest<HTMLElement>("[data-pile]")?.dataset.pile;
+  if (pile) return openPile(pile);
   if (act === "speed") {
     speed = speed === 1 ? 2 : 1;
     return render();
@@ -178,7 +254,7 @@ async function endPlayerTurn(): Promise<void> {
   }
   if (game.winner === null) {
     beginTurn(game);
-    message = "À toi de jouer.";
+    message = game.players[HUMAN].fatigued ? "Pioche vide : −10 PV pour ton Roi ! À toi de jouer." : "À toi de jouer.";
   }
   busy = false;
   render();

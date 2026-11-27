@@ -38,16 +38,17 @@ button.primary { background: var(--accent); border-color: var(--accent); font-we
   position: relative; aspect-ratio: 5 / 7; border: 1px dashed #3a3358; border-radius: 8px;
   container-type: inline-size; background: rgba(255,255,255,.02);
 }
-.slot.centre { border-color: #6a5c9e; background: rgba(120,100,200,.07); }
+.slot.centre { border-color: #8a78d6; background: rgba(120,100,200,.16); }
+.slot.centre::after { content: "🛡️"; position: absolute; top: 2px; right: 3px; font-size: 13px; opacity: .85; z-index: 2; pointer-events: none; }
 .slot[data-side="0"]:hover { background: rgba(232,88,122,.12); }
-.slot .zzz { position: absolute; top: 2px; right: 4px; font-size: 14px; }
+.slot .zzz { position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); font-size: 14px; z-index: 2; }
 .slot.deploying .card { opacity: .6; }
 .vs { text-align: center; color: var(--muted); font-size: .8rem; letter-spacing: .2em; margin: 2px 0; }
 
 .card {
   position: relative; width: 100%; height: 100%; border-radius: 8px; overflow: hidden;
   background: linear-gradient(160deg, #2e2750, #1a1630); border: 2px solid #4a4272;
-  display: grid; grid-template-rows: auto 1fr auto auto; text-align: center; font-size: 9.5cqw;
+  display: grid; grid-template-rows: auto 1fr auto auto auto; text-align: center; font-size: 9.5cqw;
   padding: 3cqw; user-select: none;
 }
 .card .cost {
@@ -85,3 +86,28 @@ button.primary { background: var(--accent); border-color: var(--accent); font-we
 
 .gallery { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px; }
 .gallery .handcard { width: 150px; cursor: default; }
+
+.card .text { font-size: 7.5cqw; line-height: 1.2; color: #d9d2f5; min-height: 0; padding: 0 1cqw; }
+.card:not(.has-text) .text { display: none; }
+.card.has-text .art { font-size: 20cqw; }
+
+.bottom { display: flex; align-items: flex-start; gap: 8px; }
+.bottom .hand { flex: 1; min-width: 0; }
+.pile { flex: 0 0 auto; width: clamp(62px, 9vw, 92px); text-align: center; cursor: pointer; margin-top: 10px; font-size: .7rem; color: var(--muted); }
+.pilecard { aspect-ratio: 5 / 7; border-radius: 8px; display: grid; place-items: center; font-size: 1.8rem; border: 2px solid #4a4272; background: repeating-linear-gradient(45deg, #2a2347, #2a2347 6px, #231d3d 6px, #231d3d 12px); box-shadow: 3px 3px 0 #1a1630, 6px 6px 0 #14102a; }
+.pile:hover .pilecard { border-color: var(--accent); }
+.pile.grave .pilecard { background: #1a1722; box-shadow: none; filter: grayscale(.6); }
+
+.chip.link { cursor: pointer; text-decoration: underline dotted; }
+.hint { min-height: 1.3em; color: #ff9fb3; font-size: .9rem; }
+.target { outline: 3px solid #ff4a6a; box-shadow: 0 0 14px #ff4a6a; border-radius: 8px; }
+.slot.target::before { content: "🎯"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 28px; z-index: 4; pointer-events: none; }
+
+.modal { align-items: start; overflow: auto; cursor: pointer; }
+.modalbox { max-width: 760px; margin: 24px auto; padding: 0 12px; text-align: left; }
+.modalbox .gallery { justify-content: flex-start; }
+.modalbox .handcard { width: clamp(90px, 22vw, 130px); }
+.muted { color: var(--muted); }
+
+.hand .handcard { flex: 1 1 0; max-width: 120px; min-width: 60px; width: auto; }
+.hand { scrollbar-color: #3a3358 transparent; }

@@ -24,12 +24,20 @@ Journal vivant du cadrage. ✅ = décidé (et reporté dans design/), ❓ = ouve
 - 1 offrande par tour (exceptions rares, très contraintes).
 - Énergie persistante (mode terrain). Deck = 23 normales + 7 gradés. Pas de contre-attaque.
 - Ciblage par défaut : en face > centre > Roi ; « le plus fort » = PV > ATK > face > centre > gauche. Cas limites tranchés (voir 01-rules).
+- Tours alternés ; plateau 14 cases ; le second joueur a +1 énergie temporaire au 1er tour (51/49 en simulation).
+- Pioche vide : −10 PV au Roi. Aucune autre condition de victoire de base.
+- Effets de cartes : tout est possible (mots-clés à la Magic, voir 07-keywords-and-effects.md).
+- Races et types (archétypes) pour des synergies uniquement. Sorts et bâtiments prévus.
+- Effets de case créés par Colonels/Généraux. Gradés désignés au deck-building.
+- Campagne : ordre de grandeur 70 à 100 duels au total.
 - Personnalités de départ : Brave, Lâche, Gardien, Assassin, Rancunier, Berzerk, Fidèle, Stratège, Défensif, Passif.
 
 ## ❓ Ouvert
-- Structure d'un tour (alternée ou commune ?) : provisoire dans le simulateur
-- Qui commence, compensation du second joueur
-- Effets de case
+- **Partie « hors duel »** (monde réel moderne, histoire, rivaux) : à concevoir pour estimer la campagne
+- Règles des **sorts** et **bâtiments** (quand/où/coût)
+- Ghostly : qui peut la cibler ? Plafond de mots-clés par carte ?
+- Listes complètes de races et de types/archétypes
+- Format de données des effets (langage commun pour créer beaucoup de cartes)
 - Grades : libres ou catégorie à part (décision après tests)
 - Boosters : types, taux, prix, pitié
-- Sauvegarde locale, mobile, structure de la campagne
+- Sauvegarde locale, mobile

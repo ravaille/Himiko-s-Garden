@@ -25,6 +25,8 @@ export interface CardDef {
   rank?: Rank;
   /** Energy gained when sacrificed. Defaults to 1. */
   offering?: number;
+  /** Optional rules text shown on the card (effects come later). */
+  text?: string;
 }
 
 /** A card on the board. */
@@ -41,6 +43,10 @@ export interface PlayerState {
   kingHp: number;
   deck: CardDef[];
   hand: CardDef[];
+  /** Dead and sacrificed cards. */
+  graveyard: CardDef[];
+  /** True if the last draw failed (empty deck: -10 king HP). */
+  fatigued: boolean;
   board: (Unit | null)[];
   maxEnergy: number;
   energy: number;
