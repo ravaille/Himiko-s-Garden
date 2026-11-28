@@ -1,0 +1,11 @@
+{
+  "name": "Himiko's Garden",
+  "short_name": "Himiko",
+  "description": "Un jeu de cartes à collectionner, dans un monde où il est devenu un phénomène mondial.",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#14121c",
+  "theme_color": "#1a1038",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

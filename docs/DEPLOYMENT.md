@@ -17,6 +17,9 @@ Gratuit : itch.io ne prend de commission que si tu mets un prix (et tu peux la r
 3. Régler la taille de l'iframe (ex. 1280×720) et activer le plein écran.
 4. (Plus tard) automatiser avec [butler](https://itch.io/docs/butler/) : `butler push dist <user>/himikos-garden:html5`.
 
+## Texte de la page itch.io
+Voir [ITCH-PAGE.md](ITCH-PAGE.md).
+
 ## Notes
 - Garder le build léger (< 100 Mo, idéalement quelques Mo) pour un chargement rapide.
 - Les assets doivent être référencés en chemin relatif.

@@ -19,6 +19,7 @@
 | [design/14-art-standard.md](design/14-art-standard.md) | Standard graphique (réf. Katana ZERO) | 🟡 décidé |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Structure du code, choix techniques | 🟢 initial |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Publier sur GitHub Pages et itch.io | 🟢 initial |
+| [ITCH-PAGE.md](ITCH-PAGE.md) | Texte et réglages de la page itch.io | 🟢 |
 | [ROADMAP.md](ROADMAP.md) | Jalons et suivi | 🟡 à remplir après les specs |
 | [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) | Décisions prises et questions ouvertes | 🟢 vivant |
 | [BALANCE.md](BALANCE.md) | Résultats de simulation d'équilibrage | 🟢 vivant |

@@ -9,6 +9,9 @@ import { currentDeck, deckbuilderClick, deckbuilderFilter, deckbuilderHtml, duel
 import { playCinematic } from "./cinematic";
 import { markDefeated, mountWorld, placeAt, sceneDuelResult, unmountWorld } from "./overworld";
 import { H_EURO } from "./currency";
+import { playMusic, sfx, type Track } from "./audio";
+import { options, optionsHtml, optionsInput, saveOptions } from "./options";
+import { NEW_GAME_FLAG, exportSave, hasSave, importSave, startNewGame } from "./savefile";
 import { saveStory, story } from "./storystore";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -22,9 +25,9 @@ let ordering: number | null = null;
 let freeMode = false;
 let busy = false;
 let message = "";
-let speed = 1; // 1 = normal, 2 = fast
 let modal: { title: string; cards: CardDef[] } | null = null;
-let screen: "intro" | "name" | "world" | "deck" | "duel" = "world";
+let screen: "title" | "intro" | "name" | "world" | "deck" | "duel" = "title";
+let optionsOpen = false;
 /** The card-choice overlay of the starting scene (null when closed). */
 let chooser: { resume: () => void } | null = null;
 const INTRO_KEY = "himiko.intro.v1";
@@ -49,23 +52,27 @@ export function startGame(el: HTMLElement): void {
   root.onchange = onFilter;
   window.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && screen === "name") return submitName();
-    if (e.key === "Escape" && screen !== "intro" && screen !== "name" && !chooser) {
+    if (e.key === "Escape" && optionsOpen) {
+      optionsOpen = false;
+      return render();
+    }
+    if (e.key === "Escape" && screen !== "intro" && screen !== "name" && screen !== "title" && !chooser) {
       menuOpen = !menuOpen;
       render();
     }
   });
-  let seen = false;
-  try {
-    seen = localStorage.getItem(INTRO_KEY) === "1";
-  } catch {
-    /* storage unavailable: the intro plays each time */
-  }
-  if (location.hash === "#nointro") {
+  const fresh = sessionStorage.getItem(NEW_GAME_FLAG) === "1";
+  sessionStorage.removeItem(NEW_GAME_FLAG);
+  root.addEventListener("click", (e) => {
+    if ((e.target as HTMLElement).closest("button")) sfx("click");
+  });
+  if (fresh) screen = "intro";
+  else if (location.hash === "#nointro") {
+    screen = "world";
     // Developer shortcut: skip the story, with the AI's random deck.
     if (!story.name) story.name = "Toi";
     if (currentDeck().length === 0) setDeck(seededDeck("default"));
-  } else if (!seen) screen = "intro";
-  else if (!story.name) screen = "name";
+  }
   render(); // opens on the intro the first time, then on the world
 }
 
@@ -115,6 +122,17 @@ function chooserHtml(): string {
 
 function onFilter(e: Event): void {
   const el = e.target as HTMLInputElement | HTMLSelectElement;
+  if (el.id === "importfile") {
+    const f = (el as HTMLInputElement).files?.[0];
+    if (f) void importSave(f).then((err) => err && alert(err));
+    return;
+  }
+  if (el.dataset.opt) {
+    optionsInput(el as HTMLInputElement);
+    const b = el.parentElement?.querySelector("b");
+    if (b && el instanceof HTMLInputElement && el.type === "range") b.textContent = el.value;
+    return;
+  }
   if (screen !== "deck" || !deckbuilderFilter(el)) return;
   const key = el.dataset.filter;
   const caret = el instanceof HTMLInputElement ? el.selectionStart : null;
@@ -126,7 +144,29 @@ function onFilter(e: Event): void {
   }
 }
 
-function menuHtml(): string {
+const menuHtml = (): string => baseMenuHtml() + (optionsOpen ? optionsHtml() : "");
+
+/** What a click on "Continuer" leads to, depending on how far the player got. */
+function continueGame(): void {
+  let seen = false;
+  try {
+    seen = localStorage.getItem(INTRO_KEY) === "1";
+  } catch {
+    /* ignore */
+  }
+  screen = !seen ? "intro" : story.name ? "world" : "name";
+  render();
+}
+
+function titleHtml(): string {
+  const can = hasSave() || localStorage.getItem(INTRO_KEY) === "1";
+  return `<div class="titlescreen"><h1>Himiko's Garden</h1><p class="muted">un jeu de cartes</p>
+    <button class="primary" data-act="title-continue" ${can ? "" : "disabled"}>▶ Continuer</button>
+    <button data-act="title-new">✨ Nouvelle partie</button>
+    <button data-act="options-open">⚙ Options</button></div>${optionsOpen ? optionsHtml() : ""}`;
+}
+
+function baseMenuHtml(): string {
   if (!menuOpen) return "";
   const blockers = duelBlockers();
   return `<div class="overlay" data-act="menu-bg"><div class="menu">
@@ -136,6 +176,8 @@ function menuHtml(): string {
     ${screen === "world" ? "" : '<button data-act="menu-world">🗺️ Retour au monde</button>'}
     <button data-act="menu-deck">🃏 Deck-building</button>
     <button data-act="menu-duel" ${blockers.length ? "disabled" : ""} title="${blockers.join(" ")}">⚔ Duel d'essai</button>
+    <button data-act="options-open">⚙ Options</button>
+    <button data-act="menu-title">🏠 Écran titre</button>
     <button data-act="menu-reset" class="danger" title="Efface la sauvegarde (monde, deck, intro) et recommence depuis le début">🔄 Réinitialiser le jeu</button>
   </div></div>`;
 }
@@ -280,7 +322,20 @@ function renderWorld(): void {
   root.querySelector("#layer")!.innerHTML = menuHtml() + chooserHtml();
 }
 
+function trackFor(): Track {
+  return screen === "name" ? "title" : screen;
+}
+
 function render(): void {
+  playMusic(trackFor());
+  if (screen === "title") {
+    if (worldOn) {
+      unmountWorld();
+      worldOn = false;
+    }
+    root.innerHTML = titleHtml();
+    return;
+  }
   if (screen === "intro") {
     if (!stopIntro) playIntro();
     return;
@@ -313,6 +368,7 @@ function render(): void {
   const over = game.winner !== null;
   if (over && !resultHandled) {
     resultHandled = true;
+    sfx(game.winner === HUMAN ? "win" : "lose");
     if (currentTrainer === "olga") sceneDuelResult(game.winner === HUMAN);
     else if (game.winner === HUMAN && currentTrainer) markDefeated(currentTrainer);
   }
@@ -320,7 +376,7 @@ function render(): void {
 
   root.innerHTML = `
     <header><h1>Himiko's Garden <small>prototype</small></h1>
-      <button data-act="speed">Vitesse ×${speed}</button></header>
+      <button data-act="speed">Vitesse ×${options.speed}</button></header>
     ${kingHtml(1)}
     ${boardHtml(1)}
     <div class="vs">⚔ VS ⚔</div>
@@ -434,13 +490,27 @@ function onClick(e: MouseEvent): void {
     modal = null;
     return render();
   }
-  if (act === "menu-reset") {
-    if (!confirm("Tout effacer (progression, deck, intro) et recommencer depuis le début ?")) return;
-    for (const k of Object.keys(localStorage)) if (k.startsWith("himiko.")) localStorage.removeItem(k);
-    history.replaceState(null, "", location.pathname + location.search);
-    location.reload();
-    return;
+  if (act === "menu-reset" || act === "title-new") {
+    if (hasSave() && !confirm("Tout effacer (progression, decks, intro) et recommencer depuis le début ? (Les options sont gardées.)")) return;
+    return startNewGame();
   }
+  if (act === "title-continue") return continueGame();
+  if (act === "menu-title") {
+    screen = "title";
+    menuOpen = false;
+    modal = null;
+    return render();
+  }
+  if (act === "options-open") {
+    optionsOpen = true;
+    return render();
+  }
+  if (act === "options-close" || (act === "options-bg" && t.classList.contains("overlay"))) {
+    optionsOpen = false;
+    return render();
+  }
+  if (act === "save-export") return exportSave();
+  if (act === "save-import") return root.querySelector<HTMLInputElement>("#importfile")?.click();
   if (act === "menu-world") {
     screen = "world";
     menuOpen = false;
@@ -469,7 +539,8 @@ function onClick(e: MouseEvent): void {
   const pile = t.closest<HTMLElement>("[data-pile]")?.dataset.pile;
   if (pile) return openPile(pile);
   if (act === "speed") {
-    speed = speed === 1 ? 2 : 1;
+    options.speed = options.speed === 1 ? 2 : 1;
+    saveOptions();
     return render();
   }
   if (busy || game.current !== HUMAN || game.winner !== null) return;
@@ -570,7 +641,7 @@ async function animateAttacks(): Promise<void> {
       f.textContent = `-${ev.damage}${ev.killed ? " ☠" : ""}`;
       toEl.appendChild(f);
     }
-    await sleep(520 / speed);
+    await sleep(520 / options.speed);
     fromEl?.classList.remove("attacking");
     toEl?.classList.remove("hit");
     toEl?.querySelector(".float")?.remove();
@@ -593,7 +664,7 @@ async function endPlayerTurn(): Promise<void> {
     poseAI(game);
     message = "L'adversaire pose ses cartes…";
     render();
-    await sleep(900 / speed);
+    await sleep(900 / options.speed);
     actionPhase(game);
     message = "L'adversaire attaque !";
     render();

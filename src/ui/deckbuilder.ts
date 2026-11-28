@@ -9,24 +9,46 @@ import { RACE, RANK } from "./labels";
  * Left: collection with filters, officers registry on top. Right: current deck + validation.
  */
 
-const STORAGE_KEY = "himiko.deck.v1";
+const LEGACY_KEY = "himiko.deck.v1";
+const STORAGE_KEY = "himiko.decks.v1";
+export const DECK_SLOTS = 5;
 
+interface Store {
+  active: number;
+  ids: string[][];
+  names: string[];
+}
+
+function loadStore(): Store {
+  const blank = (): Store => ({ active: 0, ids: Array.from({ length: DECK_SLOTS }, () => []), names: Array.from({ length: DECK_SLOTS }, (_, i) => `Deck ${i + 1}`) });
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const s = JSON.parse(raw) as Store;
+      if (Array.isArray(s.ids) && s.ids.length === DECK_SLOTS && Array.isArray(s.names)) return { ...s, active: Math.min(Math.max(0, s.active | 0), DECK_SLOTS - 1) };
+    }
+    const legacy = JSON.parse(localStorage.getItem(LEGACY_KEY) ?? "null") as string[] | null;
+    const b = blank();
+    if (Array.isArray(legacy)) b.ids[0] = legacy; // the single deck of earlier versions becomes deck 1
+    return b;
+  } catch {
+    return blank();
+  }
+}
+
+let store: Store = loadStore();
 let deck: CardDef[] = loadDeck();
 const filters = { race: "", type: "", cost: "", text: "" };
 let notice = "";
 
 function loadDeck(): CardDef[] {
-  try {
-    const ids: string[] = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
-    return ids.map(cardById).filter((c): c is CardDef => !!c);
-  } catch {
-    return [];
-  }
+  return (store.ids[store.active] ?? []).map(cardById).filter((c): c is CardDef => !!c);
 }
 
 function saveDeck(): void {
+  store.ids[store.active] = deck.map((c) => c.id);
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(deck.map((c) => c.id)));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
   } catch {
     /* storage unavailable: the deck simply won't persist */
   }
@@ -114,7 +136,9 @@ function deckPanelHtml(): string {
   const officerCount = (r: Rank) => `${deck.filter((c) => c.rank === r).length}/${RANK_LIMIT[r]}`;
   const ok = issues.length === 0;
   const officers = rows(groups.colonel) + rows(groups.lieutenant);
-  return `<h2>Ton deck <small class="${ok ? "ok" : "bad"}">${deck.length} (${DECK_MIN}-${DECK_MAX})</small></h2>
+  const tabs = store.names.map((n, i) => `<button data-slot="${i}" class="${i === store.active ? "on" : ""}" title="${n}">${i + 1}</button>`).join("");
+  return `<div class="decktabs">${tabs}<button data-act="rename" title="Renommer ce deck">✎</button></div>
+    <h2>${store.names[store.active]} <small class="${ok ? "ok" : "bad"}">${deck.length} (${DECK_MIN}-${DECK_MAX})</small></h2>
     ${rule ? '<p class="rule">⚠️ Contrainte du Général active : seules les cartes compatibles peuvent être ajoutées.</p>' : ""}
     <div class="curve">${curve.map((n, i) => `<div><span style="height:${(40 * n) / peak}px"></span><em>${i + 1}${i === 5 ? "+" : ""}</em><u>${n}</u></div>`).join("")}</div>
     <p class="muted">Gradés : Général ${officerCount("general")} · Colonels ${officerCount("colonel")} · Lieutenants ${officerCount("lieutenant")}</p>
@@ -148,6 +172,14 @@ export function deckbuilderClick(t: HTMLElement): "duel" | "render" | null {
     saveDeck();
     return "render";
   }
+  const slot = t.closest<HTMLElement>("[data-slot]")?.dataset.slot;
+  if (slot !== undefined) {
+    store.active = Number(slot);
+    deck = loadDeck();
+    notice = "";
+    saveDeck();
+    return "render";
+  }
   const rem = t.closest<HTMLElement>("[data-remove]")?.dataset.remove;
   if (rem) {
     const i = deck.map((c) => c.id).lastIndexOf(rem);
@@ -157,6 +189,12 @@ export function deckbuilderClick(t: HTMLElement): "duel" | "render" | null {
     return "render";
   }
   const act = t.closest<HTMLElement>("[data-act]")?.dataset.act;
+  if (act === "rename") {
+    const n = prompt("Nom du deck :", store.names[store.active]);
+    if (n && n.trim()) store.names[store.active] = n.trim().slice(0, 20);
+    saveDeck();
+    return "render";
+  }
   if (act === "clear") {
     deck = [];
     notice = "";

@@ -2,6 +2,7 @@ import { advance, choose, fill, start as startScene, type Output, type PromptKin
 import { DIRS, TILES, challenge, height, interact, move, spotter, visibleNpcs, width, type Dir, type Npc, type WorldEvent, type WorldState } from "../core/world";
 import { SCENES } from "../data/scenes";
 import { MAPS, START } from "../data/world";
+import { sfx } from "./audio";
 import { H_EURO } from "./currency";
 import { saveStory, story } from "./storystore";
 
@@ -262,6 +263,7 @@ function showDialog(): void {
 
 function advanceDialog(): void {
   if (!dialog) return;
+  sfx("blip");
   if (dialog.i < dialog.lines.length - 1) {
     dialog.i++;
     return showDialog();
@@ -293,7 +295,9 @@ function endScene(): void {
 
 function stepScript(): void {
   if (!script) return;
+  const before = story.money;
   const out = advance(script.runner, story);
+  if (story.money > before) sfx("coin");
   saveStory();
   if (!out) return endScene();
   switch (out.t) {
@@ -316,6 +320,7 @@ function pickOption(k: number): void {
   const out = dialog.choice.out;
   dialog = null;
   showDialog();
+  sfx("choose");
   choose(script.runner, out, k);
   stepScript();
 }
