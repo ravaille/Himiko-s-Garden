@@ -184,3 +184,17 @@ button.primary { background: var(--accent); border-color: var(--accent); font-we
 .world .dpad [data-dir=right] { grid-area: right; } .world .dpad [data-dir=down] { grid-area: down; }
 .world .abtn { width: 72px; height: 72px; border-radius: 50%; font-size: 1.5rem; font-weight: 700; background: var(--accent); border-color: var(--accent); }
 @media (pointer: coarse) { .world .pad { display: flex; } }
+
+/* ---- H-euro ---- */
+.heuro { width: .75em; height: .9em; vertical-align: -.1em; margin-left: .15em; }
+
+/* ---- intro cinematic ---- */
+.cine { position: relative; max-width: 960px; margin: 0 auto; background: #000; border: 3px solid #3a3358; border-radius: 10px; overflow: hidden; cursor: pointer; }
+.cine canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+.cine-text { position: absolute; left: 4%; right: 4%; bottom: 6%; background: #0a0812d9; border-left: 4px solid #8a78d6; padding: 10px 16px; min-height: 3.2em; font-size: 1.15rem; line-height: 1.45; transition: opacity .3s; }
+.cine-text b { display: block; color: #ffd24a; font-size: .75rem; letter-spacing: .2em; }
+.cine-text b:empty { display: none; }
+.cine-text p { margin: 0; }
+.cine-text.shout { border-left-color: #ffd24a; font-weight: 700; letter-spacing: .03em; }
+.cine-skip { position: absolute; top: 10px; right: 10px; opacity: .8; }
+.cine-fade { position: absolute; inset: 0; background: #000; opacity: 1; pointer-events: none; }

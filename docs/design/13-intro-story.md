@@ -59,6 +59,13 @@ Monnaie : le **H-euro** (Himiko's euro).
 - **Nom du joueur** : **choisi par le joueur** (saisie au début).
 - **Style** : référence **Katana ZERO**, sans copier sa patte graphique : ambiance et finesse de détails proches de ce niveau, dialogues **vivants** (rythme, personnalité, silences), pas des phrases plates.
 
+## Direction artistique de la cinématique (Romain)
+- **Monnaie** : le symbole du H-euro est un **H avec deux barres légèrement penchées** (comme le E de l'euro), pour ne pas être confondu avec une vraie monnaie. Implémenté : `src/ui/currency.ts`.
+- **Image 1** : fixe, très « Himiko contre le Démon ».
+- **Image 2** : une **arène** avec les joueurs au centre, un **écran géant** au-dessus et le **public** autour (esprit des Worlds de League of Legends), le tout en **pixel art**.
+- **Image 3** : l'image de l'arène devient la **télé** (animation ou simple fondu au noir). Le texte passe du narrateur (en bas) au commentateur à la télé. « Du jamais vu » est la **dernière phrase** de la cinématique. Ensuite, dans la pièce, le palmarès continue de sortir de la télé.
+- Implémentation actuelle (v0) : pixel art **dessiné par le code** (`src/ui/cinematic.ts`), à remplacer par de vraies images. Textes du narrateur : brouillon provisoire de Claude, la ligne du commentateur est de Romain.
+
 ## Points techniques déduits (à confirmer)
 - Une **scène scriptée** (dialogues, choix, ellipses, changements de lieu) doit être décrite en **données** (`src/data/`), pas en code.
 - Le choix du Général de départ fixe le deck de départ (les 5 archétypes restent à définir).

@@ -5,6 +5,7 @@ import { cardMatchesFilter } from "../core/effects";
 import { MAPS, seededDeck } from "../data/world";
 import { cardHtml } from "./card";
 import { currentDeck, deckbuilderClick, deckbuilderFilter, deckbuilderHtml, duelBlockers, setDeck } from "./deckbuilder";
+import { playCinematic } from "./cinematic";
 import { markDefeated, mountWorld, unmountWorld } from "./overworld";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -20,7 +21,9 @@ let busy = false;
 let message = "";
 let speed = 1; // 1 = normal, 2 = fast
 let modal: { title: string; cards: CardDef[] } | null = null;
-let screen: "world" | "deck" | "duel" = "world";
+let screen: "intro" | "world" | "deck" | "duel" = "world";
+const INTRO_KEY = "himiko.intro.v1";
+let stopIntro: (() => void) | null = null;
 let menuOpen = false;
 /** Id of the trainer being fought (null for a practice duel). */
 let currentTrainer: string | null = null;
@@ -40,14 +43,35 @@ export function startGame(el: HTMLElement): void {
   root.oninput = onFilter;
   root.onchange = onFilter;
   window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
+    if (e.key === "Escape" && screen !== "intro") {
       menuOpen = !menuOpen;
       render();
     }
   });
   // Demo: until the starter-archetype choice exists, a new player gets the same random deck as the AI.
   if (currentDeck().length === 0) setDeck(seededDeck("default"));
-  render(); // opens on the world
+  let seen = false;
+  try {
+    seen = localStorage.getItem(INTRO_KEY) === "1";
+  } catch {
+    /* storage unavailable: the intro plays each time */
+  }
+  if (!seen && location.hash !== "#nointro") screen = "intro";
+  render(); // opens on the intro the first time, then on the world
+}
+
+function playIntro(): void {
+  root.innerHTML = '<div id="stage"></div>';
+  stopIntro = playCinematic(root.querySelector<HTMLElement>("#stage")!, () => {
+    stopIntro = null;
+    try {
+      localStorage.setItem(INTRO_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+    screen = "world";
+    render();
+  });
 }
 
 function onFilter(e: Event): void {
@@ -201,6 +225,10 @@ function renderWorld(): void {
 }
 
 function render(): void {
+  if (screen === "intro") {
+    if (!stopIntro) playIntro();
+    return;
+  }
   if (screen !== "world" && worldOn) {
     unmountWorld();
     worldOn = false;
