@@ -96,6 +96,7 @@ function menuHtml(): string {
     ${screen === "world" ? "" : '<button data-act="menu-world">🗺️ Retour au monde</button>'}
     <button data-act="menu-deck">🃏 Deck-building</button>
     <button data-act="menu-duel" ${blockers.length ? "disabled" : ""} title="${blockers.join(" ")}">⚔ Duel d'essai</button>
+    <button data-act="menu-reset" class="danger" title="Efface la sauvegarde (monde, deck, intro) et recommence depuis le début">🔄 Réinitialiser le jeu</button>
   </div></div>`;
 }
 
@@ -360,6 +361,13 @@ function onClick(e: MouseEvent): void {
     menuOpen = false;
     modal = null;
     return render();
+  }
+  if (act === "menu-reset") {
+    if (!confirm("Tout effacer (progression, deck, intro) et recommencer depuis le début ?")) return;
+    for (const k of Object.keys(localStorage)) if (k.startsWith("himiko.")) localStorage.removeItem(k);
+    history.replaceState(null, "", location.pathname + location.search);
+    location.reload();
+    return;
   }
   if (act === "menu-world") {
     screen = "world";
