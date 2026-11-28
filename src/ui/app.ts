@@ -2,11 +2,14 @@ import { poseAI } from "../core/ai";
 import { BOARD_SIZE, actionPhase, beginTurn, endTurn, giveOrder, isDeploying, newGame, offer, orderTargets, playCard, playFree, previewTargets, spellTargets } from "../core/engine";
 import type { CardDef, Choice, GameState } from "../core/types";
 import { cardMatchesFilter } from "../core/effects";
-import { MAPS, seededDeck } from "../data/world";
+import { MAPS, STARTER_GENERALS, seededDeck, starterDeck } from "../data/world";
+import { cardById } from "../data/collection";
 import { cardHtml } from "./card";
 import { currentDeck, deckbuilderClick, deckbuilderFilter, deckbuilderHtml, duelBlockers, setDeck } from "./deckbuilder";
 import { playCinematic } from "./cinematic";
-import { markDefeated, mountWorld, unmountWorld } from "./overworld";
+import { markDefeated, mountWorld, placeAt, sceneDuelResult, unmountWorld } from "./overworld";
+import { H_EURO } from "./currency";
+import { saveStory, story } from "./storystore";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -21,7 +24,9 @@ let busy = false;
 let message = "";
 let speed = 1; // 1 = normal, 2 = fast
 let modal: { title: string; cards: CardDef[] } | null = null;
-let screen: "intro" | "world" | "deck" | "duel" = "world";
+let screen: "intro" | "name" | "world" | "deck" | "duel" = "world";
+/** The card-choice overlay of the starting scene (null when closed). */
+let chooser: { resume: () => void } | null = null;
 const INTRO_KEY = "himiko.intro.v1";
 let stopIntro: (() => void) | null = null;
 let menuOpen = false;
@@ -43,20 +48,24 @@ export function startGame(el: HTMLElement): void {
   root.oninput = onFilter;
   root.onchange = onFilter;
   window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && screen !== "intro") {
+    if (e.key === "Enter" && screen === "name") return submitName();
+    if (e.key === "Escape" && screen !== "intro" && screen !== "name" && !chooser) {
       menuOpen = !menuOpen;
       render();
     }
   });
-  // Demo: until the starter-archetype choice exists, a new player gets the same random deck as the AI.
-  if (currentDeck().length === 0) setDeck(seededDeck("default"));
   let seen = false;
   try {
     seen = localStorage.getItem(INTRO_KEY) === "1";
   } catch {
     /* storage unavailable: the intro plays each time */
   }
-  if (!seen && location.hash !== "#nointro") screen = "intro";
+  if (location.hash === "#nointro") {
+    // Developer shortcut: skip the story, with the AI's random deck.
+    if (!story.name) story.name = "Toi";
+    if (currentDeck().length === 0) setDeck(seededDeck("default"));
+  } else if (!seen) screen = "intro";
+  else if (!story.name) screen = "name";
   render(); // opens on the intro the first time, then on the world
 }
 
@@ -69,9 +78,39 @@ function playIntro(): void {
     } catch {
       /* ignore */
     }
-    screen = "world";
+    screen = story.name ? "world" : "name";
     render();
   });
+}
+
+/** Name entry, right after the cinematic. */
+function nameScreenHtml(): string {
+  return `<div class="namebox"><h2>Comment t'appelles-tu ?</h2>
+    <input id="namein" maxlength="14" placeholder="Ton nom" autofocus>
+    <button class="primary" data-act="name-ok">Valider</button></div>`;
+}
+
+function submitName(): void {
+  const v = (root.querySelector<HTMLInputElement>("#namein")?.value ?? "").trim();
+  if (!v) return;
+  startAdventure(v);
+}
+
+/** The story begins: at home, with the neighbour to visit. */
+function startAdventure(name: string): void {
+  story.name = name;
+  story.objective = "Aller voir le vieil homme, au bout du chemin.";
+  story.flags.adventure = true;
+  saveStory();
+  placeAt("home", 4, 5, "up");
+  screen = "world";
+  render();
+}
+
+function chooserHtml(): string {
+  if (!chooser) return "";
+  return `<div class="overlay"><div class="menu chooser"><h2>Choisis une carte</h2>
+    <div class="gallery">${STARTER_GENERALS.map((id, k) => `<div class="handcard" data-general="${id}" data-k="${k}">${cardHtml(cardById(id)!)}</div>`).join("")}</div></div></div>`;
 }
 
 function onFilter(e: Event): void {
@@ -92,6 +131,7 @@ function menuHtml(): string {
   const blockers = duelBlockers();
   return `<div class="overlay" data-act="menu-bg"><div class="menu">
     <h2>Menu</h2>
+    ${story.name ? `<p class="muted">${story.name} · <span class="money">${story.money}${H_EURO}</span>${story.objective ? `<br>🎯 ${story.objective}` : ""}</p>` : ""}
     <button data-act="menu-resume">Reprendre</button>
     ${screen === "world" ? "" : '<button data-act="menu-world">🗺️ Retour au monde</button>'}
     <button data-act="menu-deck">🃏 Deck-building</button>
@@ -218,16 +258,36 @@ function renderWorld(): void {
         screen = "deck";
         render();
       },
-      paused: () => menuOpen,
+      paused: () => menuOpen || !!chooser,
+      prompt(kind, arg, resume) {
+        if (kind === "general") {
+          chooser = { resume };
+          render();
+          return null;
+        }
+        if (kind === "duel") {
+          const blockers = duelBlockers();
+          if (blockers.length) return blockers[0];
+          message = "⚔ Duel contre Olga !";
+          newDuel(seededDeck(arg ?? "olga"), arg ?? "olga");
+          return null;
+        }
+        return null;
+      },
     });
     worldOn = true;
   }
-  root.querySelector("#layer")!.innerHTML = menuHtml();
+  root.querySelector("#layer")!.innerHTML = menuHtml() + chooserHtml();
 }
 
 function render(): void {
   if (screen === "intro") {
     if (!stopIntro) playIntro();
+    return;
+  }
+  if (screen === "name") {
+    root.innerHTML = nameScreenHtml();
+    root.querySelector<HTMLInputElement>("#namein")?.focus();
     return;
   }
   if (screen !== "world" && worldOn) {
@@ -253,7 +313,8 @@ function render(): void {
   const over = game.winner !== null;
   if (over && !resultHandled) {
     resultHandled = true;
-    if (game.winner === HUMAN && currentTrainer) markDefeated(currentTrainer);
+    if (currentTrainer === "olga") sceneDuelResult(game.winner === HUMAN);
+    else if (game.winner === HUMAN && currentTrainer) markDefeated(currentTrainer);
   }
   const result = game.winner === HUMAN ? "🏆 Victoire !" : game.winner === "draw" ? "🤝 Égalité" : "💀 Défaite";
 
@@ -351,6 +412,17 @@ function onClick(e: MouseEvent): void {
   if (act === "menu-bg" && t.classList.contains("overlay")) {
     menuOpen = false;
     return render();
+  }
+  if (act === "name-ok") return submitName();
+  const pick = t.closest<HTMLElement>("[data-general]")?.dataset.general;
+  if (pick && chooser) {
+    setDeck(starterDeck(pick));
+    saveStory();
+    const resume = chooser.resume;
+    chooser = null;
+    render();
+    resume();
+    return;
   }
   if (act === "menu-resume") {
     menuOpen = false;

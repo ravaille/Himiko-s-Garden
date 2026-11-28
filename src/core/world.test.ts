@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAPS, START, seededDeck } from "../data/world";
+import { MAPS, START, STARTER_GENERALS, seededDeck, starterDeck } from "../data/world";
 import { validateDeck } from "./deckrules";
 import { challenge, interact, isWalkable, move, spotter, validateMaps, type Maps, type WorldState } from "./world";
 
@@ -97,5 +97,31 @@ describe("the placeholder world", () => {
       expect(seededDeck(id).map((c) => c.id)).toEqual(deck.map((c) => c.id));
     }
     expect(seededDeck("hiker").map((c) => c.id)).not.toEqual(seededDeck("guard").map((c) => c.id));
+  });
+});
+
+describe("the introduction", () => {
+  it("every starter card gives a legal deck with its General", () => {
+    for (const id of STARTER_GENERALS) {
+      const deck = starterDeck(id);
+      expect(validateDeck(deck)).toEqual([]);
+      expect(deck.some((c) => c.id === id)).toBe(true);
+    }
+  });
+  it("Olga's house is reachable from the hamlet and the way back is free", () => {
+    const s: WorldState = { map: "hamlet", x: 15, y: 11, dir: "up", defeated: [], flags: {} };
+    expect(move(MAPS, s, "up")).toEqual({ moved: true, warped: true });
+    expect(s.map).toBe("olga");
+    expect(move(MAPS, s, "down").warped).toBe(true); // the door is right below the arrival point
+    expect(s).toMatchObject({ map: "hamlet", x: 15, y: 11 });
+  });
+  it("characters appear and disappear with the story flags", () => {
+    const before: WorldState = { map: "hamlet", x: 16, y: 12, dir: "up", defeated: [], flags: {} };
+    expect(interact(MAPS, before)).toEqual({ type: "script", id: "olgaOutside" });
+    const after: WorldState = { ...before, flags: { olgaMet: true } };
+    expect(interact(MAPS, after)).toBeNull();
+    const inside: WorldState = { map: "olga", x: 4, y: 4, dir: "up", defeated: [], flags: { olgaMet: true } };
+    expect(interact(MAPS, inside)).toEqual({ type: "script", id: "olgaInside" });
+    expect(interact(MAPS, { ...inside, flags: {} })).toBeNull();
   });
 });

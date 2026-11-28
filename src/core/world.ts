@@ -34,7 +34,10 @@ export const TILES: Record<string, TileDef> = {
   c: { name: "tapis", walkable: true, color: "#b04a5a" },
 };
 
-export type NpcKind = "trainer" | "talk" | "sign" | "pc" | "shop" | "vending";
+export type NpcKind = "trainer" | "talk" | "sign" | "pc" | "shop" | "vending" | "script";
+
+/** Story markers (set by scenes). */
+export type Flags = Record<string, boolean | number>;
 
 export interface Npc {
   id: string;
@@ -50,6 +53,11 @@ export interface Npc {
   sight?: number;
   /** Trainers: what they say once beaten. */
   defeatedLines?: string[];
+  /** kind "script": id of the scene (src/data/scenes.ts) played when the player talks to them. */
+  script?: string;
+  /** Only present while this story flag is set / while it is NOT set. */
+  when?: string;
+  unless?: string;
 }
 
 /** Stepping on this tile moves the player to another map (or another place on the same one). */
@@ -82,12 +90,15 @@ export interface WorldState {
   dir: Dir;
   /** Ids of the trainers already beaten. */
   defeated: string[];
+  /** Story markers, shared with the story state (not saved here). Decide which characters are present. */
+  flags?: Flags;
 }
 
 /** What the UI must do after an interaction. Dialogs can chain into another event (`then`). */
 export type WorldEvent =
   | { type: "dialog"; speaker?: string; lines: string[]; then?: WorldEvent }
   | { type: "duel"; npcId: string }
+  | { type: "script"; id: string }
   | { type: "openDeck" }
   | { type: "shop" }
   | { type: "vending" };
@@ -100,13 +111,18 @@ export function tileAt(m: WorldMap, x: number, y: number): TileDef | null {
   return ch === undefined ? null : (TILES[ch] ?? null);
 }
 
-export function npcAt(m: WorldMap, x: number, y: number): Npc | undefined {
-  return m.npcs.find((n) => n.x === x && n.y === y);
+/** Is this character on the map given the story so far? */
+export const present = (n: Npc, flags?: Flags): boolean => (!n.when || !!flags?.[n.when]) && (!n.unless || !flags?.[n.unless]);
+
+export const visibleNpcs = (m: WorldMap, flags?: Flags): Npc[] => m.npcs.filter((n) => present(n, flags));
+
+export function npcAt(m: WorldMap, x: number, y: number, flags?: Flags): Npc | undefined {
+  return m.npcs.find((n) => n.x === x && n.y === y && present(n, flags));
 }
 
 /** Can the player stand on (x, y)? Out of the map, blocked tiles and characters stop them. */
-export function isWalkable(m: WorldMap, x: number, y: number): boolean {
-  return !!tileAt(m, x, y)?.walkable && !npcAt(m, x, y);
+export function isWalkable(m: WorldMap, x: number, y: number, flags?: Flags): boolean {
+  return !!tileAt(m, x, y)?.walkable && !npcAt(m, x, y, flags);
 }
 
 export interface MoveResult {
@@ -120,7 +136,7 @@ export function move(maps: Maps, state: WorldState, dir: Dir): MoveResult {
   state.dir = dir;
   const nx = state.x + DIRS[dir].dx;
   const ny = state.y + DIRS[dir].dy;
-  if (!isWalkable(m, nx, ny)) return { moved: false, warped: false };
+  if (!isWalkable(m, nx, ny, state.flags)) return { moved: false, warped: false };
   state.x = nx;
   state.y = ny;
   const warp = m.warps.find((w) => w.x === nx && w.y === ny);
@@ -142,7 +158,7 @@ export function challenge(npc: Npc): WorldEvent {
 /** Action key: talks to whoever is in front of the player (or reads the sign, uses the PC...). */
 export function interact(maps: Maps, state: WorldState): WorldEvent | null {
   const m = maps[state.map];
-  const npc = npcAt(m, state.x + DIRS[state.dir].dx, state.y + DIRS[state.dir].dy);
+  const npc = npcAt(m, state.x + DIRS[state.dir].dx, state.y + DIRS[state.dir].dy, state.flags);
   if (!npc) return null;
   switch (npc.kind) {
     case "trainer":
@@ -155,6 +171,8 @@ export function interact(maps: Maps, state: WorldState): WorldEvent | null {
       return { type: "dialog", speaker: npc.name, lines: npc.lines, then: { type: "shop" } };
     case "vending":
       return { type: "dialog", lines: npc.lines, then: { type: "vending" } };
+    case "script":
+      return { type: "script", id: npc.script ?? "" };
     case "talk":
     case "sign":
       return { type: "dialog", speaker: npc.kind === "sign" ? undefined : npc.name, lines: npc.lines };
@@ -164,14 +182,14 @@ export function interact(maps: Maps, state: WorldState): WorldEvent | null {
 /** A trainer who has not been beaten sees the player standing in the straight line they face, within their sight. */
 export function spotter(maps: Maps, state: WorldState): Npc | null {
   const m = maps[state.map];
-  for (const npc of m.npcs) {
+  for (const npc of visibleNpcs(m, state.flags)) {
     if (npc.kind !== "trainer" || !npc.sight || isDefeated(state, npc.id)) continue;
     const { dx, dy } = DIRS[npc.dir];
     for (let k = 1; k <= npc.sight; k++) {
       const x = npc.x + dx * k;
       const y = npc.y + dy * k;
       if (x === state.x && y === state.y) return npc;
-      if (!isWalkable(m, x, y)) break; // something blocks the view
+      if (!isWalkable(m, x, y, state.flags)) break; // something blocks the view
     }
   }
   return null;

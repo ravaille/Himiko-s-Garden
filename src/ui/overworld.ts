@@ -1,5 +1,9 @@
-import { DIRS, TILES, challenge, height, interact, move, spotter, width, type Dir, type Npc, type WorldEvent, type WorldState } from "../core/world";
+import { advance, choose, fill, start as startScene, type Output, type PromptKind, type Runner } from "../core/story";
+import { DIRS, TILES, challenge, height, interact, move, spotter, visibleNpcs, width, type Dir, type Npc, type WorldEvent, type WorldState } from "../core/world";
+import { SCENES } from "../data/scenes";
 import { MAPS, START } from "../data/world";
+import { H_EURO } from "./currency";
+import { saveStory, story } from "./storystore";
 
 /**
  * Overworld screen: a character walking on tile maps, Pokémon style (docs/design/12-world-and-campaign.md).
@@ -18,6 +22,8 @@ export interface WorldHooks {
   openDeck(): void;
   /** True while a menu covers the world: input is ignored. */
   paused(): boolean;
+  /** A scene needs the game to do something (card choice, scripted duel...). Call `resume` when it is over; for a duel, the world is left and the scene resumes when it is mounted again. Returns an error message when it cannot. */
+  prompt(kind: PromptKind, arg: string | undefined, resume: () => void): string | null;
 }
 
 // ------------------------------------------------------------------ saved state
@@ -28,19 +34,25 @@ function loadState(): WorldState {
     if (s && MAPS[s.map] && Array.isArray(s.defeated) && s.dir in DIRS) {
       const m = MAPS[s.map];
       const ok = m.rows[s.y]?.[s.x] !== undefined && !!TILES[m.rows[s.y][s.x]]?.walkable;
-      if (ok) return s;
+      if (ok) return { ...s, flags: story.flags };
     }
   } catch {
     /* corrupt save: start over */
   }
-  return { ...START, defeated: [] };
+  return { ...START, defeated: [], flags: story.flags };
 }
 
 let state: WorldState = loadState();
 
+/** Puts the player somewhere (new game, scripted teleport). */
+export function placeAt(map: string, x: number, y: number, dir: Dir): void {
+  state = { ...state, map, x, y, dir, flags: story.flags };
+  save();
+}
+
 function save(): void {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ ...state, flags: undefined }));
   } catch {
     /* storage unavailable: progress is simply not kept */
   }
@@ -61,7 +73,16 @@ interface Dialog {
   lines: string[];
   i: number;
   then?: WorldEvent;
+  /** Scripted choice: the options shown instead of "next", and which one is highlighted. */
+  choice?: { out: Extract<Output, { t: "choice" }>; sel: number };
+  /** Scripted line: when it is over, the scene goes on. */
+  scripted?: boolean;
 }
+
+/** The scene being played (it survives leaving the world for a duel). */
+let script: { runner: Runner; waitingDuel: boolean } | null = null;
+/** The line shown above the options of a choice: the last thing said. */
+let lastSaid = "";
 
 let hooks: WorldHooks;
 let canvas: HTMLCanvasElement;
@@ -77,6 +98,8 @@ let anim: { fx: number; fy: number; start: number } | null = null;
 let alert: { npc: Npc; until: number } | null = null;
 let fadeStart = 0;
 let titleUntil = 0;
+let lastHud = "";
+let hudEl: HTMLElement;
 const held: Dir[] = [];
 
 const KEYS: Record<string, Dir> = {
@@ -86,7 +109,7 @@ const KEYS: Record<string, Dir> = {
   ArrowRight: "right", d: "right",
 };
 
-const busy = () => !!dialog || !!alert || !!anim || hooks.paused();
+const busy = () => !!dialog || !!alert || !!anim || !!script || hooks.paused();
 
 export function mountWorld(stage: HTMLElement, h: WorldHooks): void {
   unmountWorld();
@@ -94,6 +117,8 @@ export function mountWorld(stage: HTMLElement, h: WorldHooks): void {
   stage.innerHTML = `<div class="world">
     <canvas width="${VIEW_W * TILE}" height="${VIEW_H * TILE}"></canvas>
     <div class="maptitle"></div>
+    <div class="hud"></div>
+    <div class="cut hidden"></div>
     <div class="dlg hidden"></div>
     <div class="pad">
       <div class="dpad">
@@ -107,6 +132,8 @@ export function mountWorld(stage: HTMLElement, h: WorldHooks): void {
   ctx = canvas.getContext("2d")!;
   dialogEl = stage.querySelector(".dlg")!;
   titleEl = stage.querySelector(".maptitle")!;
+  hudEl = stage.querySelector(".hud")!;
+  lastHud = "";
   held.length = 0;
   dialog = null;
   anim = null;
@@ -117,6 +144,15 @@ export function mountWorld(stage: HTMLElement, h: WorldHooks): void {
   const down = (e: KeyboardEvent) => {
     if (hooks.paused()) return;
     const d = KEYS[e.key] ?? KEYS[e.key.toLowerCase()];
+    if (dialog?.choice) {
+      const c = dialog.choice;
+      if (d === "up" || d === "down") {
+        e.preventDefault();
+        c.sel = (c.sel + (d === "down" ? 1 : c.out.options.length - 1)) % c.out.options.length;
+        showDialog();
+      } else if (e.key >= "1" && e.key <= "9" && Number(e.key) <= c.out.options.length) pickOption(Number(e.key) - 1);
+      if (d) return; // arrows move the highlight, not the character
+    }
     if (d) {
       e.preventDefault();
       if (!held.includes(d)) held.push(d);
@@ -149,9 +185,17 @@ export function mountWorld(stage: HTMLElement, h: WorldHooks): void {
   stage.querySelector<HTMLButtonElement>("[data-do=action]")!.addEventListener("click", () => {
     if (!hooks.paused()) action();
   });
-  dialogEl.addEventListener("click", () => action());
+  dialogEl.addEventListener("click", (e) => {
+    const k = (e.target as HTMLElement).closest<HTMLElement>("[data-opt]")?.dataset.opt;
+    if (k !== undefined) pickOption(Number(k));
+    else action();
+  });
 
   mounted = true;
+  if (script?.waitingDuel) {
+    script.waitingDuel = false; // back from the duel: the scene goes on
+    stepScript();
+  }
   raf = requestAnimationFrame(frame);
 }
 
@@ -166,6 +210,7 @@ export function unmountWorld(): void {
 // ------------------------------------------------------------------ logic glue
 
 function action(): void {
+  if (dialog?.choice) return pickOption(dialog.choice.sel);
   if (dialog) return advanceDialog();
   if (busy()) return;
   const ev = interact(MAPS, state);
@@ -177,6 +222,9 @@ function runEvent(ev: WorldEvent): void {
     case "dialog":
       dialog = { speaker: ev.speaker, lines: ev.lines, i: 0, then: ev.then };
       showDialog();
+      return;
+    case "script":
+      playScene(ev.id);
       return;
     case "duel": {
       const err = hooks.duel(ev.npcId);
@@ -201,8 +249,15 @@ function showDialog(): void {
     return;
   }
   dialogEl.classList.remove("hidden");
+  if (dialog.choice) {
+    const c = dialog.choice;
+    dialogEl.innerHTML = `<p>${dialog.lines[0]}</p><div class="opts">${c.out.options
+      .map((o, k) => `<button data-opt="${k}" class="${k === c.sel ? "sel" : ""}">${k + 1}. ${o.label}</button>`)
+      .join("")}</div>`;
+    return;
+  }
   const last = dialog.i === dialog.lines.length - 1;
-  dialogEl.innerHTML = `${dialog.speaker ? `<b>${dialog.speaker}</b>` : ""}<p>${dialog.lines[dialog.i]}</p><i>${last && !dialog.then ? "■" : "▶"}</i>`;
+  dialogEl.innerHTML = `${dialog.speaker ? `<b>${dialog.speaker}</b>` : ""}<p>${dialog.lines[dialog.i]}</p><i>${last && !dialog.then && !dialog.scripted ? "■" : "▶"}</i>`;
 }
 
 function advanceDialog(): void {
@@ -212,9 +267,95 @@ function advanceDialog(): void {
     return showDialog();
   }
   const next = dialog.then;
+  const scripted = dialog.scripted;
   dialog = null;
   showDialog();
-  if (next) runEvent(next);
+  if (scripted) stepScript();
+  else if (next) runEvent(next);
+}
+
+// ------------------------------------------------------------------ scripted scenes
+
+function playScene(id: string): void {
+  const steps = SCENES[id];
+  if (!steps) return runEvent({ type: "dialog", lines: ["..."] });
+  script = { runner: startScene(steps), waitingDuel: false };
+  stepScript();
+}
+
+function endScene(): void {
+  script = null;
+  dialog = null;
+  showDialog();
+  saveStory();
+  save();
+}
+
+function stepScript(): void {
+  if (!script) return;
+  const out = advance(script.runner, story);
+  saveStory();
+  if (!out) return endScene();
+  switch (out.t) {
+    case "say":
+      lastSaid = fill(out.text, story);
+      dialog = { speaker: out.who, lines: [lastSaid], i: 0, scripted: true };
+      return showDialog();
+    case "choice":
+      dialog = { speaker: undefined, lines: [lastSaid], i: 0, choice: { out, sel: 0 } };
+      return showDialog();
+    case "cut":
+      return runCut(out.text);
+    case "prompt":
+      return runPrompt(out);
+  }
+}
+
+function pickOption(k: number): void {
+  if (!script || !dialog?.choice) return;
+  const out = dialog.choice.out;
+  dialog = null;
+  showDialog();
+  choose(script.runner, out, k);
+  stepScript();
+}
+
+function runCut(text?: string): void {
+  const el = canvas.parentElement!.querySelector<HTMLElement>(".cut")!;
+  el.textContent = text ?? "";
+  el.classList.remove("hidden");
+  setTimeout(() => {
+    el.classList.add("hidden");
+    fadeStart = performance.now();
+    stepScript();
+  }, 1300);
+}
+
+function runPrompt(out: Extract<Output, { t: "prompt" }>): void {
+  if (out.kind === "teleport") {
+    const [map, x, y, dir] = (out.arg ?? "").split(":");
+    placeAt(map, Number(x), Number(y), dir as Dir);
+    fadeStart = performance.now();
+    titleUntil = fadeStart + 2200;
+    return stepScript();
+  }
+  if (out.kind === "duel") {
+    if (script) script.waitingDuel = true;
+    const err = hooks.prompt("duel", out.arg, () => {});
+    if (err && script) {
+      script.waitingDuel = false;
+      story.flags.lastDuelWon = false;
+      stepScript();
+    }
+    return;
+  }
+  hooks.prompt(out.kind, out.arg, () => stepScript());
+}
+
+/** A duel linked to a scene is over: record the result for the scene that resumes. */
+export function sceneDuelResult(won: boolean): void {
+  story.flags.lastDuelWon = won;
+  saveStory();
 }
 
 function step(dir: Dir, now: number): void {
@@ -287,7 +428,7 @@ function draw(now: number): void {
       if (t.icon) ctx.fillText(t.icon, sx(x) + TILE / 2, sy(y) + TILE / 2 + 1);
     }
   }
-  for (const n of m.npcs) {
+  for (const n of visibleNpcs(m, story.flags)) {
     ctx.fillText(n.icon, sx(n.x) + TILE / 2, sy(n.y) + TILE / 2 + 1);
     if (alert?.npc === n) {
       ctx.fillStyle = "#ffd24a";
@@ -312,6 +453,11 @@ function draw(now: number): void {
   if (fade > 0) {
     ctx.fillStyle = `rgba(0,0,0,${fade})`;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  const hud = `${story.objective ? `🎯 ${story.objective}` : ""}<span>${story.money}${H_EURO}</span>`;
+  if (hud !== lastHud) {
+    lastHud = hud;
+    hudEl.innerHTML = hud;
   }
   titleEl.textContent = m.name;
   titleEl.classList.toggle("show", now < titleUntil);

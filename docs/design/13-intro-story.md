@@ -66,6 +66,14 @@ Monnaie : le **H-euro** (Himiko's euro).
 - **Image 3** : l'image de l'arène devient la **télé** (animation ou simple fondu au noir). Le texte passe du narrateur (en bas) au commentateur à la télé. « Du jamais vu » est la **dernière phrase** de la cinématique. Ensuite, dans la pièce, le palmarès continue de sortir de la télé.
 - Implémentation actuelle (v0) : pixel art **dessiné par le code** (`src/ui/cinematic.ts`), à remplacer par de vraies images. Textes du narrateur : brouillon provisoire de Claude, la ligne du commentateur est de Romain.
 
+## Implémentation (étape 3)
+- Scènes en données : `src/data/scenes.ts` (interprète : `src/core/story.ts`). Les répliques marquées DRAFT (réaction d'Olga si le joueur gagne, refus après 2 duels, mot de la mère au retour) sont de Claude, à réécrire par Romain.
+- Saisie du nom après la cinématique ; nouvelle partie : le joueur commence chez lui (objectif : voir le vieil homme).
+- Olga : devant sa maison (présente tant que `olgaMet` est faux), puis à l'intérieur. Cartons dans le jardin jusqu'à la visite.
+- Choix de la carte : 5 fois Shogun (placeholder) → deck de départ = Shogun + cartes communes compatibles (`starterDeck`).
+- Duel d'Olga : **provisoire** (deck aléatoire, étape 4 = deck « ~30 de stats par énergie, Samouraï/bushido »). Le résultat (`lastDuelWon`) choisit la réaction d'Olga.
+- Maman donne 200 H€ au retour (une seule fois). Après 2 duels, Olga refuse. Le HUD affiche l'objectif et les H€.
+
 ## Points techniques déduits (à confirmer)
 - Une **scène scriptée** (dialogues, choix, ellipses, changements de lieu) doit être décrite en **données** (`src/data/`), pas en code.
 - Le choix du Général de départ fixe le deck de départ (les 5 archétypes restent à définir).
